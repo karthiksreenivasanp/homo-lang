@@ -1,5 +1,9 @@
 # Homo Language - Local Run Guide
 
+[![Build Status](https://github.com/karthiksreenivasanp/homo-lang/actions/workflows/test.yml/badge.svg)](https://github.com/karthiksreenivasanp/homo-lang/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+
 This guide shows how to run `.homo` programs locally, measure basic performance, and understand current runtime capabilities.
 
 ## 1. Prerequisites
