@@ -44,6 +44,38 @@ show "Is palindrome:"
 show result
 ```
 
+**Another Example: The Machine Learning Nightmare vs Homo**
+Training an AI is usually terrifying for beginners. Look at the difference:
+
+**The Python Way (Scary for Beginners):**
+```python
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+
+df = pd.read_csv("data.csv")
+X = df.drop(columns=["weight"])
+y = df["weight"]
+
+model = RandomForestRegressor()
+model.fit(X, y)
+
+predictions = model.predict(X)
+rmse = mean_squared_error(y, predictions, squared=False)
+print("Score:", rmse)
+```
+
+**The Homo Way (Just 4 lines of plain English):**
+```homo
+load data "data.csv" as df
+
+make AI "random_forest" as my_ai
+teach my_ai using df to guess "weight"
+test my_ai on df as score metric "rmse"
+
+show score
+```
+
 Homo achieves native Python-level power without any of the frustrating technical hurdles!
 
 ## 1. Prerequisites
