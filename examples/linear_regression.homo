@@ -1,0 +1,55 @@
+# Linear regression line plotting
+show "Linear regression demo"
+
+set x as [
+    1
+    2
+    3
+    4
+    5
+]
+
+set y as [
+    2
+    4
+    5
+    4
+    5
+]
+
+calculate n as len(x)
+calculate sum_x as 0
+calculate sum_y as 0
+calculate sum_xy as 0
+calculate sum_x2 as 0
+
+for i in range(0, n)
+    calculate xi as x[i]
+    calculate yi as y[i]
+    calculate sum_x as sum_x + xi
+    calculate sum_y as sum_y + yi
+    calculate sum_xy as sum_xy + (xi * yi)
+    calculate sum_x2 as sum_x2 + (xi * xi)
+
+calculate numerator as (n * sum_xy) - (sum_x * sum_y)
+calculate denominator as (n * sum_x2) - (sum_x * sum_x)
+calculate slope as numerator / denominator
+calculate intercept as (sum_y - (slope * sum_x)) / n
+
+show "Slope"
+show slope
+show "Intercept"
+show intercept
+
+set y_pred as [
+]
+
+for i in range(0, n)
+    calculate xi as x[i]
+    calculate yi_hat as (slope * xi) + intercept
+    append yi_hat to y_pred
+
+show "Actual values (line)"
+show chart line of y
+show "Regression line"
+show chart line of y_pred

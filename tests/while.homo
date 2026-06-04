@@ -1,0 +1,9 @@
+show "While Test"
+
+set i as 1
+
+while i <= 5
+
+    show i
+
+    calculate i as i + 1

@@ -1,0 +1,13 @@
+ask "Enter Word:" word
+
+reverse word as rev
+
+show rev
+
+if word == rev
+
+    show "Palindrome"
+
+otherwise
+
+    show "Not Palindrome"

@@ -1,0 +1,7 @@
+define add a b
+
+    return a + b
+
+repeat 10000
+
+    call add 1 2

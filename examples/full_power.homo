@@ -1,0 +1,54 @@
+# Full power demo: data + text + files + errors
+show "Full power demo"
+
+set numbers as [
+    4
+    12
+    7
+    18
+    22
+]
+
+filter numbers where num > 10 as big_numbers
+map big_numbers with num * 2 as doubled
+join doubled with ", " as report
+
+show "Big numbers doubled:"
+show report
+
+count big_numbers as big_count
+calculate total as 0
+for n in big_numbers
+    calculate total as total + n
+
+calculate average as total / big_count
+show "Average of big numbers:"
+show average
+
+set text as "red,green,blue"
+split text by "," as colors
+map colors with item + "!" as shout
+join shout with " " as banner
+show "Banner:"
+show banner
+
+set profile as {
+    name: "Ava"
+    city: "Chennai"
+    level: "pro"
+}
+set name as profile.name
+show "User name:"
+show name
+show "User city:"
+show profile.city
+
+write report as "report.txt"
+write banner as "banner.txt"
+
+try
+    calculate bad as 10 / 0
+    show bad
+otherwise
+    show "Caught error:"
+    show error

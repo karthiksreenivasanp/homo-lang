@@ -1,0 +1,4 @@
+add a plus b
+set c=a plus b
+show c
+

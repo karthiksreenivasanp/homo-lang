@@ -1,0 +1,8 @@
+show "If Test"
+
+set age as 18
+
+if age >= 18
+    show "Adult"
+otherwise
+    show "Minor"

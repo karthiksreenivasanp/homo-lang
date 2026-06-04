@@ -1,0 +1,7 @@
+define greet title name
+
+    show title
+
+    show name
+
+call greet "Your Grace" "Karthik"

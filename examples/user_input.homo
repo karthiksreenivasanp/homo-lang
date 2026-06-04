@@ -1,0 +1,7 @@
+show "What is your name?"
+
+ask name
+
+show "Welcome"
+
+show name

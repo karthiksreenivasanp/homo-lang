@@ -1,0 +1,92 @@
+create website
+set responsive
+set theme as dark
+set meta title as "karthiksreenivasanp"
+set meta description as "Karthik Sreenivasan P - AI and Data Science student building offline AI tools and creative software."
+
+add stylesheet "https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap"
+
+set style of body as background:#050b16, color:#ffffff, font-family:Inter, overflow-x:hidden
+set style of .homo-content as width:92%, max-width:1150px, margin:auto, padding:40px 0
+set style of section as margin-top:60px
+set style of #hero as margin-top:0
+
+set style of .readme-box as border:1px solid #2a3344, border-radius:14px, padding:24px, background:#040915
+set style of .top-bar as display:flex, justify-content:space-between, align-items:center, color:#d7d7d7, font-size:14px, margin-bottom:30px, font-family:'Fira Code'
+set style of .edit-btn as font-size:22px, opacity:0.8
+set style of h1 as text-align:center, font-size:6vw, font-weight:800, margin-bottom:20px, color:#e8edf7
+set style of .typing as text-align:center, font-family:'Fira Code', font-size:3vw, color:#00ff66, margin-bottom:30px, min-height:40px, font-weight:600
+set style of .snake-box img as width:100%, border-radius:10px
+set style of .code-box as background:#111827, border:1px solid #1f2a3a, border-radius:16px, padding:30px, overflow:auto, margin-top:20px
+set style of .code-box code as font-family:'Fira Code', font-size:15px, line-height:1.8, color:#ffffff, white-space:pre
+set style of .button-section as display:flex, justify-content:center, margin-top:30px
+set style of .coffee-btn img as transition:0.3s
+set style of .coffee-btn img:hover as transform:translateY(-4px)
+
+set style of .about-card as display:flex, justify-content:space-between, align-items:center, gap:40px, background:#040915, border:1px solid #7c3aed, border-radius:14px, padding:32px, flex-wrap:wrap
+set style of .about-list as display:flex, flex-direction:column, gap:12px, color:#d6d6d6, font-size:17px, line-height:1.8
+set style of .about-image img as width:170px, height:170px, object-fit:cover, border-radius:50%, border:4px solid #111827, box-shadow:0 0 25px #7c3aed
+
+set style of .project-card as background:#111827, border:1px solid #1f2a3a, border-radius:14px, padding:24px, margin-bottom:20px, transition:0.3s
+set style of .project-card:hover as transform:translateY(-4px), border-color:#00ff66
+set style of .project-card h3 as margin-bottom:12px, font-size:24px
+set style of .project-card a as color:#4ea1ff, text-decoration:none
+set style of .project-card p as color:#d7d7d7, line-height:1.7, margin-bottom:12px
+set style of .tech as color:#00ff99, font-family:'Fira Code'
+
+set style of .connect as text-align:center, margin-top:60px, padding-bottom:40px
+set style of .connect h2 as margin-bottom:16px, font-size:28px
+set style of .connect a as color:#4ea1ff, text-decoration:none, margin:0 10px, font-size:18px
+set style of .connect a:hover as color:#00ff66
+
+add section "hero"
+    <div class="readme-box">
+    <div class="top-bar"><span>karthiksreenivasanp / README.md</span><span class="edit-btn">✎</span></div>
+    <h1 class="hero-title">Karthik Sreenivasan P</h1>
+    <div class="typing"><span>&gt; offline tools initialized</span><br><span>&gt; loading AI systems</span><br><span>&gt; terminal workflow active</span></div>
+    <div class="snake-box"><img src="https://raw.githubusercontent.com/Platane/snk/output/github-contribution-grid-snake-dark.svg" alt="snake"></div>
+    <div class="code-box"><pre><code>class Karthik:<br>&nbsp;&nbsp;role = "AI &amp; Data Science Student"<br>&nbsp;&nbsp;interests = {<br>&nbsp;&nbsp;&nbsp;&nbsp;"AI": ["Machine Learning","Offline AI Systems","Creative Software"],<br>&nbsp;&nbsp;&nbsp;&nbsp;"Languages": ["Python","HTML","CSS","JS","NodeJS","SQL"]<br>&nbsp;&nbsp;}<br><br>&nbsp;&nbsp;def build(self):<br>&nbsp;&nbsp;&nbsp;&nbsp;return "Turning ideas into useful software."<br><br>me = Karthik()<br>print(me.build())</code></pre></div>
+    <div class="button-section"><a class="coffee-btn" href="https://buymeacoffee.com/karthiksreenivasanp" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="50" width="190" alt="Buy Me A Coffee"></a></div>
+    </div>
+
+add section "about"
+    <div class="about-card">
+    <div class="about-text">
+    <h2>About</h2>
+    <div class="about-list">
+    <span>- Currently Pursuing B.Tech AI and DS</span>
+    <span>- Exploring Machine Learning, HTML, AI, Python</span>
+    <span>- Linux and terminal-based workflow user</span>
+    </div>
+    </div>
+    <div class="about-image"><img src="profile.png" alt="Profile"></div>
+    </div>
+
+add section "projects"
+    <h2>Projects</h2>
+    <div class="project-card">
+    <h3><a href="https://github.com/karthiksreenivasanp/Grammer-AI">Grammer AI</a></h3>
+    <p>Offline CLI that rewrites text locally using LLMs.</p>
+    <div class="tech">Python - Qwen - llama-cpp-python</div>
+    </div>
+    <div class="project-card">
+    <h3><a href="https://github.com/karthiksreenivasanp/LitLoom">LitLoom</a></h3>
+    <p>Desktop app for poetry writing and exports.</p>
+    <div class="tech">Python - Tkinter - ReportLab</div>
+    </div>
+    <div class="project-card">
+    <h3><a href="https://github.com/karthiksreenivasanp/speaker-based-attendance">Speaker Based Attendance</a></h3>
+    <p>AI-powered voice biometric attendance with GPS geofencing.</p>
+    <div class="tech">Python - FastAPI - Firebase - SpeechBrain</div>
+    </div>
+
+add section "connect"
+    <div class="connect">
+    <h2>Connect</h2>
+    <a href="https://www.linkedin.com/in/karthiksreenivasanp/">LinkedIn</a> •
+    <a href="https://x.com/karthikpsreeni">Twitter</a> •
+    <a href="https://www.instagram.com/karthiksreenivasanp">Instagram</a> •
+    <a href="mailto:karthiksreenivasanp@gmail.com">Mail Me</a>
+    </div>
+
+publish website

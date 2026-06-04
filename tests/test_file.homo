@@ -1,0 +1,3 @@
+write sample.txt as "Hello Homo"
+read sample.txt
+show content

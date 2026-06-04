@@ -1,0 +1,7 @@
+set total as 0
+
+repeat 1000000
+
+    calculate total as total + 1
+
+show total

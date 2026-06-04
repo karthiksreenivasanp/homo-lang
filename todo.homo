@@ -1,0 +1,17 @@
+show "TODO APP"
+
+set tasks as []
+
+repeat 3
+
+    ask "Task:" task
+
+    append task to tasks
+
+show ""
+
+show "TASK LIST"
+
+for task in tasks
+
+    show task

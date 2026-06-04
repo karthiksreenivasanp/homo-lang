@@ -1,0 +1,7 @@
+
+set a as 18
+set b as 93
+
+calculate c as a + b
+
+show c

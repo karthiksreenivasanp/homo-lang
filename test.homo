@@ -1,0 +1,63 @@
+show "=== HOMO TEST START ==="
+
+# Variables
+set name = "Karthi"
+set age = 21
+
+show "Name:"
+show name
+
+show "Age:"
+show age
+
+# Math
+set a = 10
+set b = 5
+
+show "Addition:"
+add a b
+
+show "Subtraction:"
+subtract a b
+
+show "Multiplication:"
+multiply a b
+
+show "Division:"
+divide a b
+
+# Lists
+create list numbers
+append numbers 5
+append numbers 3
+append numbers 9
+append numbers 1
+
+show "Original List:"
+show numbers
+
+sort numbers
+show "Sorted List:"
+show numbers
+
+reverse numbers
+show "Reversed List:"
+show numbers
+
+# AI
+create ai
+teach ai with "hello"
+teach ai with "welcome"
+
+ask ai "hello"
+ask ai "welcome"
+
+# Drawing
+draw square 4
+draw triangle 4
+
+# Objects
+create player
+move player 10 20
+
+show "=== HOMO TEST END ==="

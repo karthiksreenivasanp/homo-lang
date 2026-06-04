@@ -1,0 +1,18 @@
+===== COLLECTION TESTS =====
+[5,2,8,1,9]
+[5,2,8,1,9,10]
+[homo] Removed 2 from 'numbers'
+[5,8,1,9,10]
+[homo] Sorted 'numbers'
+[1,5,8,9,10]
+[homo] 'numbers' reversed -> 'reversed'
+[1,5,8,9,10]
+[homo] Count of '8 in numbers' = 12
+12
+Variable 'big' not found
+Variable 'doubled' not found
+[homo] Joined 'numbers' → 'joined'
+1,5,8,9,10
+[homo] Split 'joined' → 'split_numbers'
+["1","5","8","9","10"]
+===== TEST COMPLETE =====

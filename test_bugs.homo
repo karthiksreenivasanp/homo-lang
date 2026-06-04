@@ -1,0 +1,7 @@
+encrypt "Hello Homo" with "secret" as token
+show token
+decrypt token with "secret" as plain
+show plain
+make folder demo_folder
+copy test.txt as backup.txt
+delete file backup.txt

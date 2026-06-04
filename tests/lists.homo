@@ -1,0 +1,5 @@
+set names as ["A","B","C"]
+
+append "D" to names
+
+show names

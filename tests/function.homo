@@ -1,0 +1,6 @@
+define greet name
+
+    show "Hello"
+    show name
+
+call greet "Karthik"

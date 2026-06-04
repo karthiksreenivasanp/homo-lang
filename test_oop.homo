@@ -1,0 +1,28 @@
+show "===== HOMO OOP ULTIMATE TEST ====="
+
+class Animal
+
+    function eat()
+        show "Animal Eating"
+    endfunction
+
+endclass
+
+class Dog inherits Animal
+
+    function bark()
+        show "Woof Woof"
+    endfunction
+
+endclass
+
+create myDog from Dog
+
+call eat()
+call bark()
+
+show "Object Created Successfully"
+show "Methods Executed Successfully"
+show "Inheritance Working Successfully"
+
+show "===== ALL TESTS FINISHED ====="

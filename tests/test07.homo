@@ -1,0 +1,7 @@
+show "TEST 7"
+
+define hello
+
+    show "Hello World"
+
+call hello

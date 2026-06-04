@@ -1,0 +1,5 @@
+open database users
+
+save name as "Karthik"
+
+show "Saved"

@@ -1,0 +1,25 @@
+show "=================="
+show "Student Manager"
+show "=================="
+
+set students as []
+
+repeat 3
+
+    ask "Student Name:" name
+
+    ask "Student Mark:" mark
+
+    append name + ":" + mark to students
+
+show ""
+show "Student Records"
+
+for student in students
+
+    show student
+
+write students.txt as students
+
+show ""
+show "Saved Successfully"

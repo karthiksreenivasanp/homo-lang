@@ -1,0 +1,7 @@
+show "Variables Test"
+
+set name as "Karthik"
+set age as 20
+
+show name
+show age

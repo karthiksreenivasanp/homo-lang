@@ -1,0 +1,5 @@
+show "TEST 2"
+
+calculate result as 10 + 20 * 3
+
+show result

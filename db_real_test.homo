@@ -1,0 +1,12 @@
+open database test
+
+save database user1 as "Karthik"
+save database user2 as "Alice"
+
+query db where Alice as results
+show results
+
+delete user2 from database
+
+query db where Alice as results2
+show results2

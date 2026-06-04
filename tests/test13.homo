@@ -1,0 +1,3 @@
+write test.txt as "Hello Homo"
+
+show "Saved"

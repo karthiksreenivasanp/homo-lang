@@ -1,0 +1,13 @@
+make website
+
+set theme as dark
+
+add header "My Portfolio"
+
+add card "About"
+
+    AI Developer
+
+add footer "Made with Homo"
+
+publish website

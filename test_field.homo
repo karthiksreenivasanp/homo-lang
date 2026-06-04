@@ -1,0 +1,6 @@
+create class Animal
+    set species as "Dog"
+
+create Animal as myDog
+
+show myDog

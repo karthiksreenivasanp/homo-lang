@@ -1,0 +1,7 @@
+set person as {
+    name: "Karthik",
+    age: 20
+}
+
+show person.name
+show person.age

@@ -1,0 +1,75 @@
+make website
+
+title is "Karthik Sreenivasan P"
+
+dark website
+
+menu
+    Home
+    About
+    Projects
+    Contact
+
+hero
+    Karthik Sreenivasan P
+    AI Developer • Designer • Builder
+
+show image "profile.jpg"
+
+about me
+    Passionate AI and Software Developer.
+    Building intelligent systems, web applications,
+    and innovative technology solutions.
+
+skills
+    Python
+    Java
+    JavaScript
+    React
+    AI
+    Machine Learning
+    UI Design
+
+projects
+
+    card "Speaker Based Attendance System"
+        Voice biometric attendance using AI.
+        FastAPI, React, Firebase, SpeechBrain.
+
+    card "Sahayak"
+        AI-powered education assistant
+        for teachers and students.
+
+    card "Grammar AI"
+        Grammar correction and writing assistant.
+
+    card "LitLoom"
+        Interactive storytelling platform.
+
+experience
+
+    timeline "IEEE Design Team"
+        Design Intern
+
+education
+
+    card "B.Tech AI & Data Science"
+        Student
+
+social links
+
+    linkedin "https://linkedin.com/in/your-profile"
+
+    github "https://github.com/your-username"
+
+    website "https://www.karthiksreenivasanp.social"
+
+contact form
+    name
+    email
+    message
+
+footer says
+    © 2026 Karthik Sreenivasan P
+
+publish website

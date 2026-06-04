@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+homo.exe
+*.log
+.DS_Store
+dist/
+build/
+*.spec

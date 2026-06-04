@@ -1,0 +1,9 @@
+define count n
+
+    show n
+
+    if n > 1
+
+        call count n - 1
+
+call count 5

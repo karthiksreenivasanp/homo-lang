@@ -1,0 +1,17 @@
+show "===== DATABASE TEST ====="
+
+connect database testdb as db
+
+query db insert name=Karthik
+
+query db insert name=Alice
+
+query db select
+
+query db delete name=Alice
+
+query db select
+
+delete database db
+
+show "===== DATABASE TEST COMPLETE ====="

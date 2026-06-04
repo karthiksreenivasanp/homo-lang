@@ -1,0 +1,7 @@
+set count as 1
+
+while count is less than or equal to 5
+
+    show count
+
+    calculate count as count * 1

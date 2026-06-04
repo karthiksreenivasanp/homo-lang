@@ -1,0 +1,5 @@
+show "TEST 4"
+
+repeat 5
+
+    show "Loop"

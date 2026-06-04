@@ -1,0 +1,6 @@
+set numbers as [1,2,3]
+
+reverse numbers
+
+show numbers
+show reversed

@@ -1,0 +1,9 @@
+define countdown n
+
+    show n
+
+    if n > 1
+
+        call countdown n - 1
+
+call countdown 5

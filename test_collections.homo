@@ -1,0 +1,34 @@
+show "===== COLLECTION TESTS ====="
+
+set numbers as [5,2,8,1,9]
+
+show numbers
+
+append 10 to numbers
+show numbers
+
+remove 2 from numbers
+show numbers
+
+sort numbers
+show numbers
+
+reverse numbers
+show numbers
+
+count 8 in numbers as total
+show total
+
+filter numbers > 5 as big
+show big
+
+map numbers * 2 as doubled
+show doubled
+
+join numbers with "," as joined
+show joined
+
+split joined by "," as split_numbers
+show split_numbers
+
+show "===== TEST COMPLETE ====="

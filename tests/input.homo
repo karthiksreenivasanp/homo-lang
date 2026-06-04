@@ -1,0 +1,5 @@
+ask "Your Name:" name
+
+show "Hello"
+
+show name

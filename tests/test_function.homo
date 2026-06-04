@@ -1,0 +1,4 @@
+define greet person
+    show person
+
+call greet "Karthi"

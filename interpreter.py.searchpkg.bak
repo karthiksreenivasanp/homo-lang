@@ -1,0 +1,2208 @@
+from ast_nodes import *
+import os, json, subprocess, sys, re as _re, time as _time
+import math as _math, random as _random, datetime as _datetime
+import ast as _ast
+
+try:
+    import tkinter as tk
+    _TK = True
+except ImportError:
+    _TK = False
+
+try:
+    import requests as _requests
+    _REQ = True
+except ImportError:
+    _REQ = False
+
+
+# ── Web state (shared across all web nodes in one run) ────────────────────────
+_WEB = {
+    "title": "Homo App",
+    "description": "",
+    "keywords": "",
+    "responsive": True,
+    "theme": "light",
+    "styles": {},          
+    "layout": None,        
+    "nav_links": [],
+    "header": "",
+    "footer": "",
+    "extra_scripts": [],
+    "extra_styles": [],
+    "pages": {},           
+    "current_page": "main",
+    "components": {},      
+    "routes": {},          
+}
+
+# ── Themes ────────────────────────────────────────────────────────────────────
+_THEMES = {
+    "light": {"--bg": "#ffffff", "--fg": "#111111", "--accent": "#0066cc",
+              "--card-bg": "#f5f5f5", "--border": "#dddddd"},
+    "dark":  {"--bg": "#1a1a2e", "--fg": "#e0e0e0", "--accent": "#7b2fff",
+              "--card-bg": "#16213e", "--border": "#333355"},
+    "ocean": {"--bg": "#0f3460", "--fg": "#e0fbfc", "--accent": "#53d8fb",
+              "--card-bg": "#16213e", "--border": "#53d8fb"},
+}
+
+def _safe_range(*args):
+    return range(*[int(float(a)) if isinstance(a, str) else int(a) for a in args])
+
+_SAFE_FUNCS = {
+    "len": len,
+    "int": int,
+    "float": float,
+    "str": str,
+    "round": round,
+    "abs": abs,
+    "min": min,
+    "max": max,
+    "range": _safe_range,
+}
+_SAFE_CONSTANTS = {"pi": _math.pi, "e": _math.e}
+if hasattr(_math, "tau"):
+    _SAFE_CONSTANTS["tau"] = _math.tau
+
+_MISSING = object()
+
+
+class FunctionRef:
+    def __init__(self, interpreter, name):
+        self.interpreter = interpreter
+        self.name = name
+
+
+class ModuleNamespace:
+    def __init__(self, name, interpreter, export_names):
+        self.name = name
+        self.interpreter = interpreter
+        self.export_names = set(export_names)
+
+    def resolve(self, name):
+        if name not in self.export_names:
+            return _MISSING
+        if name in self.interpreter.functions:
+            return FunctionRef(self.interpreter, name)
+        if name in self.interpreter.variables:
+            return self.interpreter.variables[name]
+        return _MISSING
+
+    def set(self, name, value):
+        self.interpreter.variables[name] = value
+        return value
+
+
+def _web_page(name="main"):
+    if name not in _WEB["pages"]:
+        _WEB["pages"][name] = []
+    return _WEB["pages"][name]
+
+
+def _build_html(page_name="main"):
+    theme_vars = _THEMES.get(_WEB["theme"], _THEMES["light"])
+    css_vars   = "\n    ".join(f"{k}: {v};" for k, v in theme_vars.items())
+    responsive_meta = ('<meta name="viewport" content="width=device-width, initial-scale=1.0">\n  ' if _WEB["responsive"] else "")
+    custom_css = ""
+    for elem, props in _WEB["styles"].items():
+        rules = "; ".join(f"{p}: {v}" for p, v in props.items() if p != "_raw")
+        if "_raw" in props: rules += "; " + props["_raw"]
+        custom_css += f"\n  {elem} {{ {rules} }}"
+    layout_css = ""
+    if _WEB["layout"]:
+        lt = _WEB["layout"]
+        if lt == "flex": layout_css = "\n  .homo-content { display: flex; flex-wrap: wrap; gap: 1rem; }"
+        elif lt == "grid": layout_css = "\n  .homo-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }"
+        elif isinstance(lt, tuple) and lt[0] == "columns": layout_css = f"\n  .homo-content {{ display: grid; grid-template-columns: repeat({lt[1]}, 1fr); gap: 1.5rem; }}"
+    nav_html = ""
+    if _WEB["nav_links"]:
+        links = "".join(f'<a href="{l.lstrip("/") or "#"}">{l}</a>' for l in _WEB["nav_links"])
+        nav_html = f'<nav class="homo-nav">{links}</nav>\n  '
+    header_html = f'<header class="homo-header"><h1>{_WEB["header"]}</h1></header>\n  ' if _WEB["header"] else ""
+    body_lines = _web_page(page_name)
+    body_html  = "\n    ".join(body_lines) if body_lines else "<p>Your content goes here.</p>"
+    footer_html = f'\n  <footer class="homo-footer">{_WEB["footer"]}</footer>' if _WEB["footer"] else ""
+    extra_styles  = "\n  ".join(f'<link rel="stylesheet" href="{h}">' for h in _WEB["extra_styles"])
+    extra_scripts = "\n  ".join(f'<script src="{s}"></script>' for s in _WEB["extra_scripts"])
+    desc_meta = f'<meta name="description" content="{_WEB["description"]}">\n  ' if _WEB["description"] else ""
+    kw_meta   = f'<meta name="keywords" content="{_WEB["keywords"]}">\n  '       if _WEB["keywords"]    else ""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  {responsive_meta}{desc_meta}{kw_meta}<title>{_WEB["title"]}</title>
+  {extra_styles}
+  <style>
+    :root {{
+    {css_vars}
+    }}
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; }}
+    .homo-nav {{ background: var(--accent); padding: 0.75rem 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; }}
+    .homo-nav a {{ color: #fff; text-decoration: none; font-weight: 600; }}
+    .homo-nav a:hover {{ text-decoration: underline; }}
+    .homo-header {{ padding: 2rem 1.5rem 1rem; border-bottom: 2px solid var(--border); }}
+    .homo-header h1 {{ font-size: 2rem; }}
+    .homo-content {{ max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; }}
+    .homo-card {{ background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.25rem; }}
+    .homo-card h3 {{ margin-bottom: 0.5rem; color: var(--accent); }}
+    .homo-footer {{ text-align: center; padding: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; opacity: 0.7; margin-top: 2rem; }}
+    .homo-form {{ display: flex; flex-direction: column; gap: 0.75rem; max-width: 480px; }}
+    .homo-form input, .homo-form textarea, .homo-form select {{ padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font-size: 1rem; }}
+    .homo-form button, button.homo-btn {{ padding: 0.55rem 1.25rem; background: var(--accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 600; }}
+    .homo-form button:hover, button.homo-btn:hover {{ opacity: 0.85; }}
+    img.homo-img {{ max-width: 100%; height: auto; border-radius: 6px; }}
+    ul.homo-list {{ padding-left: 1.5rem; }}
+    @media (max-width: 600px) {{ .homo-content {{ padding: 0 1rem; }} .homo-header h1 {{ font-size: 1.4rem; }} .homo-nav {{ gap: 0.5rem; }} }}{custom_css}{layout_css}
+  </style>
+</head>
+<body>
+  {nav_html}{header_html}<main class="homo-content">
+    {body_html}
+  </main>{footer_html}
+  {extra_scripts}
+</body>
+</html>"""
+
+
+class Interpreter:
+
+    def __init__(self, base_dir=None, module_cache=None):
+        self.variables       = {}
+        self.functions       = {}
+        self.classes         = {}
+        self.tables          = {}
+        self.db              = {}
+        self.db_file         = None
+        self._tk_root        = None
+        self._tk_widgets     = {}
+        self._pending_prompt = None
+        self._socket         = None
+        self._log_file       = "app.log"
+        self.base_dir        = base_dir or os.getcwd()
+        self.module_cache    = module_cache if module_cache is not None else {}
+        self._exported_names = set()
+        self._module_name    = None
+        self._ast_cache      = {}
+
+    def _normalize_expr(self, expr):
+        expr = str(expr)
+        replacements = [
+            (" divided by ", " / "),
+            (" plus ", " + "),
+            (" minus ", " - "),
+            (" times ", " * "),
+            (" mod ", " % "),
+            (" power ", " ** "),
+        ]
+        for src, dst in replacements:
+            expr = expr.replace(src, dst)
+        expr = _re.sub(r'\btrue\b', "True", expr, flags=_re.IGNORECASE)
+        expr = _re.sub(r'\bfalse\b', "False", expr, flags=_re.IGNORECASE)
+        expr = _re.sub(r'\byes\b', "True", expr, flags=_re.IGNORECASE)
+        expr = _re.sub(r'\bno\b', "False", expr, flags=_re.IGNORECASE)
+        expr = _re.sub(r'\bnull\b', "None", expr, flags=_re.IGNORECASE)
+        return expr
+
+    def _normalize_condition(self, cond_text):
+        cond = self._normalize_expr(cond_text)
+        replacements = [
+            (" is greater than or equal to ", " >= "),
+            (" is less than or equal to ", " <= "),
+            (" is greater or equal ", " >= "),
+            (" is less or equal ", " <= "),
+            (" is not equal to ", " != "),
+            (" not equals ", " != "),
+            (" is equal to ", " == "),
+            (" equals ", " == "),
+            (" greater than or equal to ", " >= "),
+            (" greater or equal ", " >= "),
+            (" less than or equal to ", " <= "),
+            (" less or equal ", " <= "),
+            (" is greater than ", " > "),
+            (" greater than ", " > "),
+            (" is less than ", " < "),
+            (" less than ", " < "),
+        ]
+        for src, dst in replacements:
+            cond = cond.replace(src, dst)
+        return cond
+
+    def _resolve_name(self, name, local_vars):
+        if name in local_vars:
+            return local_vars[name]
+        if name in self.variables:
+            return self.variables[name]
+        key = name.lower()
+        if key in ("true", "yes"): return True
+        if key in ("false", "no"): return False
+        if key in ("none", "null"): return None
+        if key in _SAFE_CONSTANTS: return _SAFE_CONSTANTS[key]
+        raise NameError(name)
+
+    def _resolve_dotted_container(self, token, scope):
+        parts = token.split(".")
+        if len(parts) < 2: return None, None
+        obj = scope.get(parts[0], self.variables.get(parts[0]))
+        for part in parts[1:-1]:
+            if isinstance(obj, dict): obj = obj.get(part)
+            elif isinstance(obj, ModuleNamespace):
+                obj = obj.resolve(part)
+                if obj is _MISSING: return None, None
+            elif hasattr(obj, part): obj = getattr(obj, part)
+            else: return None, None
+        return obj, parts[-1]
+
+    def _resolve_dotted_value(self, token, scope):
+        parts = token.split(".")
+        if len(parts) < 2: return _MISSING
+        obj = scope.get(parts[0], self.variables.get(parts[0]))
+        for part in parts[1:]:
+            if isinstance(obj, dict):
+                if part not in obj: return f"[homo] '{parts[0]}' has no attribute '{part}'"
+                obj = obj.get(part)
+            elif isinstance(obj, ModuleNamespace):
+                obj = obj.resolve(part)
+                if obj is _MISSING: return f"[homo] '{parts[0]}' has no attribute '{part}'"
+            elif hasattr(obj, part): obj = getattr(obj, part)
+            else: return f"[homo] '{parts[0]}' has no attribute '{part}'"
+        if isinstance(obj, FunctionRef): return f"[homo] function {obj.name}"
+        return obj
+
+    def _eval_ast(self, node, local_vars):
+        if isinstance(node, _ast.Constant): return node.value
+        if isinstance(node, _ast.Name): return self._resolve_name(node.id, local_vars)
+        if isinstance(node, _ast.List): return [self._eval_ast(e, local_vars) for e in node.elts]
+        if isinstance(node, _ast.Tuple): return tuple(self._eval_ast(e, local_vars) for e in node.elts)
+        if isinstance(node, _ast.Dict): return {self._eval_ast(k, local_vars): self._eval_ast(v, local_vars) for k, v in zip(node.keys, node.values)}
+        if isinstance(node, _ast.BinOp):
+            left = self._eval_ast(node.left, local_vars)
+            right = self._eval_ast(node.right, local_vars)
+            if isinstance(node.op, _ast.Add):
+                if isinstance(left, str) or isinstance(right, str): return str(left) + str(right)
+                if isinstance(left, list) and isinstance(right, list): return left + right
+                return left + right
+            if isinstance(node.op, _ast.Sub): return left - right
+            if isinstance(node.op, _ast.Mult): return left * right
+            if isinstance(node.op, _ast.Div): return left / right
+            if isinstance(node.op, _ast.Mod): return left % right
+            if isinstance(node.op, _ast.Pow): return left ** right
+            raise ValueError("Unsupported operator")
+        if isinstance(node, _ast.UnaryOp):
+            operand = self._eval_ast(node.operand, local_vars)
+            if isinstance(node.op, _ast.Not): return not operand
+            if isinstance(node.op, _ast.UAdd): return +operand
+            if isinstance(node.op, _ast.USub): return -operand
+            raise ValueError("Unsupported unary operator")
+        if isinstance(node, _ast.BoolOp):
+            if isinstance(node.op, _ast.And):
+                for v in node.values:
+                    if not self._eval_ast(v, local_vars): return False
+                return True
+            if isinstance(node.op, _ast.Or):
+                for v in node.values:
+                    if self._eval_ast(v, local_vars): return True
+                return False
+            raise ValueError("Unsupported boolean operator")
+        if isinstance(node, _ast.Compare):
+            left = self._eval_ast(node.left, local_vars)
+            for op, comparator in zip(node.ops, node.comparators):
+                right = self._eval_ast(comparator, local_vars)
+                if isinstance(op, _ast.Eq): ok = left == right
+                elif isinstance(op, _ast.NotEq): ok = left != right
+                elif isinstance(op, _ast.Lt): ok = left < right
+                elif isinstance(op, _ast.LtE): ok = left <= right
+                elif isinstance(op, _ast.Gt): ok = left > right
+                elif isinstance(op, _ast.GtE): ok = left >= right
+                elif isinstance(op, _ast.In): ok = left in right
+                elif isinstance(op, _ast.NotIn): ok = left not in right
+                else: raise ValueError("Unsupported comparison operator")
+                if not ok: return False
+                left = right
+            return True
+        if isinstance(node, _ast.Subscript):
+            value = self._eval_ast(node.value, local_vars)
+            sl = node.slice
+            if hasattr(_ast, "Index") and isinstance(sl, _ast.Index): sl = sl.value
+            if isinstance(sl, _ast.Slice):
+                lower = self._eval_ast(sl.lower, local_vars) if sl.lower else None
+                upper = self._eval_ast(sl.upper, local_vars) if sl.upper else None
+                step = self._eval_ast(sl.step, local_vars) if sl.step else None
+                return value[slice(lower, upper, step)]
+            idx = self._eval_ast(sl, local_vars)
+            return value[idx]
+        if isinstance(node, _ast.Attribute):
+            obj = self._eval_ast(node.value, local_vars)
+            if isinstance(obj, dict): return obj.get(node.attr)
+            if isinstance(obj, ModuleNamespace):
+                val = obj.resolve(node.attr)
+                if val is _MISSING: raise ValueError("Unsupported attribute access")
+                return val
+            if hasattr(obj, node.attr): return getattr(obj, node.attr)
+            raise ValueError("Unsupported attribute access")
+        if isinstance(node, _ast.Call):
+            if not isinstance(node.func, _ast.Name): raise ValueError("Unsupported function call")
+            func_name = node.func.id
+            if func_name not in _SAFE_FUNCS: raise ValueError("Unsupported function call")
+            args = [self._eval_ast(a, local_vars) for a in node.args]
+            kwargs = {}
+            for kw in node.keywords:
+                if kw.arg is None: raise ValueError("Unsupported kwargs")
+                kwargs[kw.arg] = self._eval_ast(kw.value, local_vars)
+            return _SAFE_FUNCS[func_name](*args, **kwargs)
+        raise ValueError("Unsupported expression")
+
+    def _safe_eval(self, expr, local_vars, *, normalized=False):
+        if expr is None: return ""
+        if not normalized: expr = self._normalize_expr(expr)
+        expr = str(expr).strip()
+        if not expr: return ""
+        if expr not in self._ast_cache:
+            self._ast_cache[expr] = _ast.parse(expr, mode="eval")
+        return self._eval_ast(self._ast_cache[expr].body, local_vars)
+
+    def evaluate(self, expr, local_vars):
+        expr = str(expr).strip()
+        if (expr.startswith('"') and expr.endswith('"')) or \
+           (expr.startswith("'") and expr.endswith("'")):
+            return expr[1:-1]
+            
+        if expr.startswith("call "):
+            cp = expr[5:].split()
+            return self.call_function(cp[0], cp[1:], local_vars)
+            
+        if " call " in expr:
+            def _replace_call(m):
+                res = self.call_function(m.group(1), m.group(2).split(), local_vars)
+                return str(res)
+            expr = _re.sub(r'\bcall\s+(\w+)\s+(.*)$', _replace_call, expr)
+            
+        expr = self._normalize_expr(expr)
+        try:
+            return self._safe_eval(expr, local_vars, normalized=True)
+        except NameError as e:
+            return f"Variable '{e.args[0]}' not found"
+        except Exception:
+            if " + " in expr:
+                parts = expr.split(" + ")
+                result = ""
+                for p in parts:
+                    p = p.strip()
+                    if (p.startswith("'") and p.endswith("'")) or \
+                       (p.startswith('"') and p.endswith('"')):
+                        result += p[1:-1]
+                    else:
+                        result += p
+                return result
+            return expr
+
+    def _eval_path(self, expr, scope):
+        raw = str(expr).strip()
+        # If it's a quoted string, strip the quotes and return as-is
+        if (raw.startswith('"') and raw.endswith('"')) or \
+           (raw.startswith("'") and raw.endswith("'")):
+            return raw[1:-1]
+        # Try to resolve as a variable first
+        if raw in scope:
+            return str(scope[raw]).strip('"\'')
+        if raw in self.variables:
+            return str(self.variables[raw]).strip('"\'')
+        # Fall back: evaluate the expression; if it errors, use the raw text
+        val = str(self.evaluate(raw, scope))
+        if val.startswith("Variable '") and val.endswith("' not found"):
+            return raw.strip('"\'')
+        return val.strip("'\"")
+
+    def _show_value(self, token, scope=None):
+        scope = scope if scope is not None else self.variables
+        raw = token.strip()
+        
+        if raw.startswith("call "):
+            cp = raw[5:].split()
+            return self.call_function(cp[0], cp[1:], scope)
+            
+        if (raw.startswith('"') and raw.endswith('"')) or \
+           (raw.startswith("'") and raw.endswith("'")):
+            inner = raw[1:-1]
+            def _interp(m):
+                key = m.group(1).strip()
+                val = scope.get(key, self.variables.get(key, m.group(0)))
+                return str(val)
+            interpolated = _re.sub(r'\{(\w+)\}', _interp, inner)
+            if interpolated != inner:
+                return interpolated
+            return inner
+
+        m = _re.fullmatch(r'(\w+)\[(-?\d+)\]', token.strip())
+        if m:
+            var, idx = m.group(1), int(m.group(2))
+            val = scope.get(var, self.variables.get(var))
+            if isinstance(val, list):
+                try: return val[idx]
+                except IndexError: return f"[homo] Index {idx} out of range"
+            if isinstance(val, str) and val.startswith('['):
+                items = val.strip('[]').split(',')
+                try: return items[idx].strip().strip('"\'')
+                except IndexError: return f"[homo] Index {idx} out of range"
+            return f"[homo] '{var}' is not a list"
+
+        if '.' in token and not token.startswith('"'):
+            val = self._resolve_dotted_value(token.strip(), scope)
+            if val is not _MISSING:
+                return val
+
+        low = token.strip().lower()
+
+        m = _re.match(r'square root of (.+)', low)
+        if m:
+            val = self.evaluate(m.group(1), scope)
+            try: return _math.sqrt(float(val))
+            except Exception: return f"[homo] Cannot sqrt({val})"
+
+        m = _re.match(r'random number between (\S+) and (\S+)', low)
+        if m:
+            a = self.evaluate(m.group(1), scope)
+            b = self.evaluate(m.group(2), scope)
+            try: return _random.randint(int(a), int(b))
+            except Exception: return "[homo] Random error"
+
+        if low in ('current time', 'time'):
+            return _datetime.datetime.now().strftime('%H:%M:%S')
+        if low in ('current date', 'date', 'today'):
+            return _datetime.datetime.now().strftime('%Y-%m-%d')
+
+        m = _re.match(r'length of (.+)', low)
+        if m:
+            val = scope.get(m.group(1).strip(), m.group(1).strip())
+            return len(str(val))
+
+        m = _re.match(r'type of (.+)', low)
+        if m:
+            val = scope.get(m.group(1).strip(), m.group(1).strip())
+            return type(val).__name__
+
+        if token in scope:          return scope[token]
+        if token in self.variables: return self.variables[token]
+        if (token.startswith('"') and token.endswith('"')) or \
+           (token.startswith("'") and token.endswith("'")):
+            return token[1:-1]
+        return self.evaluate(token, scope)
+
+    def _format_value(self, val):
+        """Format a value for display output."""
+        if isinstance(val, list):
+            formatted_items = []
+            for item in val:
+                if isinstance(item, str):
+                    formatted_items.append(f'"{item}"')
+                else:
+                    formatted_items.append(str(item))
+            return "[" + ",".join(formatted_items) + "]"
+        if isinstance(val, dict):
+            pairs = []
+            for k, v in val.items():
+                if k == "__class__":
+                    continue
+                kf = f'"{k}"' if isinstance(k, str) else str(k)
+                vf = f'"{v}"' if isinstance(v, str) else str(v)
+                pairs.append(f"{kf}: {vf}")
+            return "{" + ", ".join(pairs) + "}"
+        return str(val)
+
+    def _eval_condition(self, cond_text, local_vars):
+        cond_text = cond_text.strip()
+        if " contains " in cond_text:
+            cond_text = _re.sub(r'(\S+)\s+contains\s+(\S+)', r'\2 in \1', cond_text)
+        try:
+            expr = self._normalize_condition(cond_text)
+            return bool(self._safe_eval(expr, local_vars, normalized=True))
+        except Exception:
+            return False
+
+    def _split_if_otherwise(self, body, start_idx):
+        true_b, else_b = [], []
+        depth, in_else = 0, False
+        idx = start_idx
+        TOP_LEVEL = ("set ", "calculate ", "show ", "ask ", "return ",
+                     "call ", "while ", "for ", "repeat ", "define ",
+                     "if ", "read ", "write ", "append ", "remove ", "sort ")
+        while idx < len(body):
+            line = body[idx].strip()
+            if depth == 0 and not in_else and line == "otherwise":
+                in_else = True; idx += 1; continue
+            if depth == 0 and line.startswith("if "):
+                depth += 1
+            elif depth > 0:
+                if line.startswith("if "): depth += 1
+                elif line == "otherwise":  depth -= 1
+            else:
+                current = else_b if in_else else true_b
+                if len(current) >= 1 and any(line.startswith(kw) for kw in TOP_LEVEL):
+                    break
+            (else_b if in_else else true_b).append(line)
+            idx += 1
+        return true_b, else_b, idx
+
+    def run_block(self, body, local_vars):
+        i = 0
+        while i < len(body):
+            line = body[i].strip()
+
+            if not line:
+                i += 1; continue
+
+            if line == "break":
+                return "__break__"
+
+            if line.startswith("if "):
+                true_b, else_b, end = self._split_if_otherwise(body, i + 1)
+                branch = true_b if self._eval_condition(line[3:].strip(), local_vars) else else_b
+                result = self.run_block(branch, local_vars)
+                if result is not None: return result
+                i = end; continue
+
+            elif line == "otherwise":
+                i += 1; continue
+
+            elif line.startswith("define "):
+                parts = line.split()
+                func_name, params = parts[1], parts[2:]
+                func_body = []
+                j = i + 1
+                while j < len(body):
+                    bline = body[j]
+                    if not bline.strip():
+                        j += 1; continue
+                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                        func_body.append(bline)
+                        j += 1
+                    else:
+                        break
+                self.functions[func_name] = {"params": params, "body": func_body}
+                i = j; continue
+
+            elif line.startswith("while "):
+                condition = line[6:].strip()
+                while_body = []
+                j = i + 1
+                while j < len(body):
+                    bline = body[j]
+                    if not bline.strip():
+                        j += 1; continue
+                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                        while_body.append(bline)
+                        j += 1
+                    else:
+                        break
+                safety = 0
+                cond_low = condition.strip().lower()
+                while True:
+                    if cond_low not in ("true", "1", "yes"):
+                        if not self._eval_condition(condition, local_vars):
+                            break
+                    result = self.run_block(while_body, local_vars)
+                    if result == "__break__":
+                        break
+                    if result is not None and result != "__break__":
+                        return result
+                    safety += 1
+                    if safety > 100_000:
+                        print("[homo] Warning: loop limit reached"); break
+                i = j; continue
+
+            elif line.startswith("for ") and " in " in line:
+                parts = line[4:].strip().split(" in ")
+                variable = parts[0].strip()
+                iterable = parts[1].strip()
+                for_body = []
+                j = i + 1
+                while j < len(body):
+                    bline = body[j]
+                    if not bline.strip():
+                        j += 1; continue
+                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                        for_body.append(bline)
+                        j += 1
+                    else:
+                        break
+                items = local_vars.get(iterable, self.variables.get(iterable))
+                if items is None:
+                    items = self._resolve_iterable(iterable)
+                for item in items:
+                    local_vars[variable] = item
+                    result = self.run_block(for_body, local_vars)
+                    if result == "__break__":
+                        break
+                    if result is not None and result != "__break__":
+                        return result
+                i = j; continue
+
+            elif line.startswith("repeat "):
+                count_expr = line[7:].strip()
+                if count_expr.endswith(" times"):
+                    count_expr = count_expr[:-6].strip()
+                repeat_body = []
+                j = i + 1
+                while j < len(body):
+                    bline = body[j]
+                    if not bline.strip():
+                        j += 1; continue
+                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                        repeat_body.append(bline)
+                        j += 1
+                    else:
+                        break
+                count = int(self.evaluate(count_expr, local_vars))
+                for _ in range(count):
+                    result = self.run_block(repeat_body, local_vars)
+                    if result == "__break__":
+                        break
+                    if result is not None and result != "__break__":
+                        return result
+                i = j; continue
+
+            elif line.startswith("calculate "):
+                rest  = line[len("calculate "):]
+                parts = rest.split(" as ", 1)
+                local_vars[parts[0].strip()] = self.evaluate(
+                    parts[1].strip() if len(parts) > 1 else "0", local_vars)
+
+            elif line.startswith("set "):
+                rest  = line[len("set "):]
+                parts = rest.split(" as ", 1)
+                var_name = parts[0].strip()
+                rhs      = parts[1].strip() if len(parts) > 1 else ""
+                import re as _re2
+                m = _re2.fullmatch(r'(\w+)\[(-?\d+|\w+)\]', var_name)
+                if m:
+                    lst_name, idx_raw = m.group(1), m.group(2)
+                    try: idx = int(idx_raw)
+                    except ValueError: idx = int(local_vars.get(idx_raw, idx_raw))
+                    val = self.evaluate(rhs, local_vars)
+                    target = local_vars.get(lst_name, self.variables.get(lst_name, []))
+                    if isinstance(target, list):
+                        target[idx] = val
+                        local_vars[lst_name] = target
+                        self.variables[lst_name] = target
+                elif '.' in var_name:
+                    val = self.evaluate(rhs, local_vars)
+                    target, attr = self._resolve_dotted_container(var_name, local_vars)
+                    if isinstance(target, dict): target[attr] = val
+                    elif isinstance(target, ModuleNamespace): target.set(attr, val)
+                    else: print(f"[homo] '{var_name}' is not an object")
+                    local_vars[var_name.split('.')[0]] = target
+                elif rhs.startswith("call "):
+                    cp = rhs[len("call "):].split()
+                    local_vars[var_name] = self.call_function(cp[0], cp[1:], local_vars)
+                else:
+                    local_vars[var_name] = self.evaluate(rhs, local_vars)
+
+            elif line.startswith("show "):
+                token = line[5:].strip()
+                val = self._show_value(token, local_vars)
+                val_str = self._format_value(val)
+                if val_str.rstrip().endswith(":"):
+                    print(val_str, end=" ")
+                else:
+                    print(val_str)
+
+            elif line.startswith("ask "):
+                rest = line[4:].strip()
+                if rest.startswith('"'):
+                    end_quote   = rest.index('"', 1)
+                    prompt_text = rest[1:end_quote].rstrip()
+                    if not prompt_text.endswith(" "): prompt_text += " "
+                    var = rest[end_quote + 1:].strip().lstrip(",").strip()
+                    local_vars[var if var else rest] = input(prompt_text).strip()
+                else:
+                    local_vars[rest] = input(f"{rest}? ").strip()
+
+            elif line.startswith("append ") and " to " in line:
+                parts = line[7:].split(" to ", 1)
+                val   = self.evaluate(parts[0].strip(), local_vars)
+                lst   = parts[1].strip()
+                target = local_vars.get(lst, self.variables.get(lst, []))
+                if not isinstance(target, list): target = []
+                target.append(val)
+                local_vars[lst] = target
+                self.variables[lst] = target
+
+            elif line.startswith("return "):
+                return self.evaluate(line[7:].strip(), local_vars)
+
+            elif line.startswith("call "):
+                cp = line[5:].split()
+                result = self.call_function(cp[0], cp[1:], local_vars)
+                if result is not None:
+                    local_vars["result"] = result
+                
+            elif line.startswith("read "):
+                rest = line[5:].strip()
+                if " as " in rest:
+                    parts = rest.split(" as ", 1)
+                    fname_expr = parts[0].strip()
+                    var_name = parts[1].strip()
+                else:
+                    fname_expr = rest
+                    var_name = "content"
+                fname = self._eval_path(fname_expr, local_vars)
+                try:
+                    with open(fname) as f:
+                        file_content = f.read()
+                    local_vars[var_name] = file_content
+                except FileNotFoundError:
+                    print(f"[homo] Error: file '{fname}' not found")
+
+            elif line.startswith("write ") and " as " in line:
+                parts = line[6:].split(" as ", 1)
+                fname = self._eval_path(parts[0].strip(), local_vars)
+                content_val = str(self._show_value(parts[1].strip(), local_vars))
+                with open(fname, "w") as f:
+                    f.write(content_val)
+                    
+            elif line.startswith("create object ") and " as " in line:
+                parts = line[14:].split(" as ")
+                cls = parts[0].strip()
+                var = parts[1].strip()
+                if cls not in self.classes:
+                    print(f"[homo] Error: class '{cls}' not defined")
+                else:
+                    obj = dict(self.classes[cls]["fields"])
+                    obj["__class__"] = cls
+                    local_vars[var] = obj
+                    
+            elif line.startswith("create ") and " as " in line:
+                parts = line[7:].split(" as ")
+                cls = parts[0].strip()
+                var = parts[1].strip()
+                if cls not in self.classes:
+                    print(f"[homo] Error: class '{cls}' not defined")
+                else:
+                    obj = dict(self.classes[cls]["fields"])
+                    obj["__class__"] = cls
+                    local_vars[var] = obj
+
+            i += 1
+        return None
+
+    def call_function(self, name, args, parent_vars, *, allow_parent_vars=True):
+        if "." in name:
+            parts = name.split(".")
+            func_name = parts[-1]
+            module_path = ".".join(parts[:-1])
+            if len(parts) == 2:
+                container = (parent_vars or {}).get(parts[0], self.variables.get(parts[0]))
+            else:
+                container = self._resolve_dotted_value(module_path, parent_vars or self.variables)
+            if isinstance(container, ModuleNamespace):
+                export = container.resolve(func_name)
+                if isinstance(export, FunctionRef):
+                    return export.interpreter.call_function(func_name, args, parent_vars, allow_parent_vars=False)
+                print(f"[homo] Error: '{name}' is not a function")
+                return None
+        if name not in self.functions:
+            print(f"[homo] Error: function '{name}' not defined")
+            return None
+        func = self.functions[name]
+        # Build a clean scope: global vars + parent context + params
+        # This ensures recursion works with isolated scopes
+        local_vars = dict(self.variables)
+        if parent_vars and allow_parent_vars:
+            local_vars.update(parent_vars)
+            
+        for i, param in enumerate(func["params"]): 
+            if i < len(args):
+                arg_str = " ".join(args[i:]) if i == len(func["params"]) - 1 else args[i]
+                local_vars[param] = self.evaluate(arg_str, parent_vars if parent_vars else self.variables)
+            
+        return self.run_block(func["body"], local_vars)
+
+    def _resolve_module_path(self, mod_name):
+        mod_name = mod_name.strip('"\'')
+        if mod_name.endswith(".homo") or "\\" in mod_name or "/" in mod_name:
+            rel = mod_name
+        else:
+            rel = mod_name.replace(".", os.sep) + ".homo"
+            
+        path1 = os.path.abspath(os.path.join(self.base_dir, rel))
+        if os.path.isfile(path1): return path1
+        
+        path2 = os.path.abspath(os.path.join(os.getcwd(), rel))
+        if os.path.isfile(path2): return path2
+        
+        return path1
+
+    def _attach_module(self, mod_name, module_obj):
+        parts = mod_name.split(".")
+        if len(parts) == 1:
+            self.variables[parts[0]] = module_obj
+            return
+        root = self.variables.get(parts[0])
+        if not isinstance(root, dict):
+            root = {}
+            self.variables[parts[0]] = root
+        current = root
+        for part in parts[1:-1]:
+            nxt = current.get(part)
+            if not isinstance(nxt, dict):
+                nxt = {}
+                current[part] = nxt
+            current = nxt
+        current[parts[-1]] = module_obj
+
+    def _load_homo_module(self, mod_name):
+        if mod_name in self.module_cache:
+            return self.module_cache[mod_name]
+        path = self._resolve_module_path(mod_name)
+        if not os.path.isfile(path):
+            return None
+        from lexer import Lexer
+        from parser import Parser
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                source = f.read()
+            tokens = Lexer().tokenize(source)
+            ast = Parser().parse(tokens)
+            module_interpreter = Interpreter(base_dir=os.path.dirname(path), module_cache=self.module_cache)
+            module_interpreter._module_name = mod_name
+            module_ns = ModuleNamespace(mod_name, module_interpreter, set())
+            self.module_cache[mod_name] = module_ns
+            module_interpreter.execute(ast)
+            # Auto-export all functions and variables if no explicit exports
+            if module_interpreter._exported_names:
+                module_ns.export_names = set(module_interpreter._exported_names)
+            else:
+                module_ns.export_names = set(module_interpreter.functions.keys()) | set(module_interpreter.variables.keys())
+            return module_ns
+        except Exception as e:
+            self.module_cache.pop(mod_name, None)
+            print(f"[homo] Module load error: {mod_name} ({e})")
+            return None
+
+    def _get_tk(self):
+        if not _TK:
+            print("[homo] GUI not available — install tkinter")
+            return None
+        if self._tk_root is None:
+            self._tk_root = tk.Tk()
+            self._tk_root.withdraw()
+        return self._tk_root
+
+    def _resolve_iterable(self, token):
+        val = self.variables.get(token, token)
+        if isinstance(val, (list, range)): return val
+        s = str(val).strip()
+        if s.startswith('[') and s.endswith(']'):
+            inner = s[1:-1]
+            items = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
+            result = []
+            for item in items:
+                try: result.append(int(item))
+                except ValueError:
+                    try: result.append(float(item))
+                    except ValueError: result.append(item)
+            return result
+        try:
+            evaled = self._safe_eval(s, self.variables)
+            if isinstance(evaled, (list, range, tuple)): return evaled
+        except Exception:
+            pass
+        return s.split(',')
+
+    def _log(self, message):
+        ts = _datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        entry = f"[{ts}] {message}"
+        print(entry)
+        try:
+            with open(self._log_file, "a") as f: f.write(entry + "\n")
+        except Exception: pass
+
+    def execute(self, ast):
+        for line_no, node in enumerate(ast, start=1):
+            try:
+                self._exec_node(node)
+            except Exception as e:
+                print(f"[homo] Runtime error on statement {line_no} ({type(node).__name__}): {e}")
+
+    def _exec_node(self, node): 
+
+        if isinstance(node, BreakNode): return
+        
+        elif isinstance(node, SetIndexNode):
+            target = self.variables.get(node.name, [])
+            idx = int(self.evaluate(str(node.index), self.variables))
+            val = self.evaluate(str(node.value), self.variables)
+            if isinstance(target, list):
+                target[idx] = val
+                self.variables[node.name] = target
+
+        elif isinstance(node, FunctionNode):
+            self.functions[node.name] = {"params": node.parameters, "body": node.body}
+
+        elif isinstance(node, ExportNode):
+            names = [n.strip() for n in str(node.name).split(",") if n.strip()]
+            for name in names:
+                self._exported_names.add(name)
+
+        elif isinstance(node, SetNode):
+            name  = str(node.name)
+            value = str(node.value).strip()
+            import re as _re2
+            m = _re2.fullmatch(r'(\w+)\[(-?\d+|\w+)\]', name.strip())
+            if m:
+                lst_name, idx_raw = m.group(1), m.group(2)
+                try: idx = int(idx_raw)
+                except ValueError: idx = int(self.variables.get(idx_raw, idx_raw))
+                val = self.evaluate(value, self.variables)
+                target = self.variables.get(lst_name, [])
+                if isinstance(target, list):
+                    target[idx] = val
+                    self.variables[lst_name] = target
+                return
+            if '.' in name:
+                val = self.evaluate(value, self.variables)
+                target, attr = self._resolve_dotted_container(name, self.variables)
+                if isinstance(target, dict):
+                    target[attr] = val
+                elif isinstance(target, ModuleNamespace):
+                    target.set(attr, val)
+                else:
+                    print(f"[homo] '{name}' is not an object")
+                return
+            m = _re.fullmatch(r'(\w+)\[(-?\d+)\]', name.strip())
+            if m:
+                var, idx = m.group(1), int(m.group(2))
+                val = self.evaluate(value, self.variables)
+                if var in self.variables and isinstance(self.variables[var], list):
+                    self.variables[var][idx] = val
+                return
+            if value.startswith("call "):
+                cp = value[len("call "):].split()
+                ret = self.call_function(cp[0], cp[1:], self.variables)
+                self.variables[name] = ret if ret is not None else self.variables.get("result")
+            else:
+                self.variables[name] = self.evaluate(value, self.variables)
+
+        elif isinstance(node, SetDictNode):
+            self.variables[node.name] = {
+                k: self.evaluate(v.rstrip(','), self.variables) for k, v in node.pairs.items()
+            }
+
+        elif isinstance(node, ShowNode):
+            raw_val = self._show_value(node.value)
+            val = self._format_value(raw_val)
+            if val.rstrip().endswith(":"):
+                self._pending_prompt = val.rstrip() + " "
+            else:
+                self._pending_prompt = None
+                print(val)
+
+        elif isinstance(node, CalculateNode):
+            expr = str(node.expression).strip()
+            _special = ("square root of", "random number between",
+                        "length of", "type of")
+            _exact = {"current time", "current date", "today", "time", "date"}
+            if any(expr.lower().startswith(s) for s in _special) or \
+               expr.lower() in _exact:
+                self.variables[node.result] = self._show_value(expr)
+            else:
+                self.variables[node.result] = self.evaluate(expr, self.variables)
+
+        elif isinstance(node, AskNode):
+            if self._pending_prompt:
+                prompt = self._pending_prompt; self._pending_prompt = None
+            else:
+                prompt = node.prompt if node.prompt else f"{node.variable}? "
+                if not prompt.endswith(" "): prompt += " "
+            self.variables[node.variable] = input(prompt).strip()
+
+        elif isinstance(node, IfNode):
+            branch = node.true_message if self._eval_condition(node.condition, self.variables) \
+                     else node.false_message
+            if isinstance(branch, list):
+                self.run_block(branch, self.variables)
+            elif branch:
+                s = str(branch)
+                if s.startswith("__IF__"):
+                    import ast as _ast_mod
+                    try:
+                        s = s[6:]
+                        cond, rest = s.split("__THEN__", 1)
+                        true_raw, false_raw = rest.split("__ELSE__", 1)
+                        true_b  = _ast_mod.literal_eval(true_raw)
+                        false_b = _ast_mod.literal_eval(false_raw)
+                        nested = true_b if self._eval_condition(cond, self.variables) else false_b
+                        self.run_block(nested, self.variables)
+                    except Exception:
+                        print(s)
+                else:
+                    print(str(self._show_value(s)))
+
+        elif isinstance(node, WhileNode):
+            safety = 0
+            cond = node.condition.strip().lower()
+            while True:
+                if cond not in ("true", "1", "yes"):
+                    if not self._eval_condition(node.condition, self.variables):
+                        break
+                result = self.run_block(node.body, self.variables)
+                if result == "__break__":
+                    break
+                safety += 1
+                if safety > 100_000:
+                    print("[homo] Warning: loop limit reached"); break
+
+        elif isinstance(node, ForNode):
+            for item in self._resolve_iterable(node.iterable):
+                self.variables[node.variable] = item
+                result = self.run_block(node.body, self.variables)
+                if result == "__break__":
+                    break
+
+        elif isinstance(node, RepeatNode):
+            count = int(self.evaluate(str(node.count), self.variables))
+            for _ in range(count):
+                result = self.run_block(node.body, self.variables)
+                if result == "__break__":
+                    break
+
+        elif isinstance(node, ReadNode):
+            fname = self._eval_path(node.filename, self.variables)
+            try:
+                with open(fname) as f: file_data = f.read()
+                self.variables[node.variable] = file_data
+            except FileNotFoundError:
+                print(f"[homo] Error: file '{fname}' not found")
+
+        elif isinstance(node, WriteNode):
+            fname   = self._eval_path(str(node.filename), self.variables)
+            content = str(self._show_value(str(node.content), self.variables))
+            with open(fname, "w") as f: f.write(content)
+
+        elif isinstance(node, TryNode):
+            scope = dict(self.variables); caught = False
+            for line in node.try_body:
+                line = line.strip()
+                try:
+                    if line.startswith("calculate "):
+                        rest  = line[len("calculate "):]
+                        parts = rest.split(" as ", 1)
+                        val   = self.evaluate(parts[1].strip(), scope)
+                        if isinstance(val, str) and not val.replace('.','').lstrip('-').isdigit():
+                            raise ValueError(f"Cannot evaluate: {parts[1].strip()!r}")
+                        scope[parts[0].strip()] = val
+                    elif line.startswith("set "):
+                        rest  = line[len("set "):]
+                        parts = rest.split(" as ", 1)
+                        scope[parts[0].strip()] = self.evaluate(parts[1].strip(), scope)
+                    elif line.startswith("show "):
+                        print(self._show_value(line[5:].strip(), scope))
+                    elif line.startswith("call "):
+                        cp = line[5:].split()
+                        self.call_function(cp[0], cp[1:], scope)
+                except Exception as e:
+                    self.variables["error"] = str(e)
+                    self.run_block(node.catch_body, dict(self.variables))
+                    caught = True; break
+            if not caught: self.variables.update(scope)
+
+        elif isinstance(node, OpenDBNode):
+            self.db_file = str(node.db_name).strip('"\'') + ".json"
+            if os.path.exists(self.db_file):
+                with open(self.db_file) as f: self.db = json.load(f)
+            else: self.db = {}
+            print(f"[homo] Database '{self.db_file}' opened ({len(self.db)} records)")
+
+        elif isinstance(node, SaveDBNode):
+            key = str(node.entity).strip('"\'')
+            val = self._show_value(str(node.value))
+            self.db[key] = val
+            if self.db_file:
+                with open(self.db_file, "w") as f: json.dump(self.db, f, indent=2)
+            print(f"[homo] Saved '{key}' = '{val}'")
+
+        elif isinstance(node, ConnectDBNode):
+            print(f"[homo] Connecting to {node.db_type} at {node.url or '(local)'}")
+            try:
+                if node.db_type.lower() in ("sqlite", "sqlite3"):
+                    import sqlite3
+                    self.variables["_db_conn"] = sqlite3.connect(node.url or ":memory:")
+                    print("[homo] SQLite connected")
+                else:
+                    print(f"[homo] External DB '{node.db_type}' — use install + use for full drivers")
+            except Exception as e:
+                print(f"[homo] DB connect error: {e}")
+
+        elif isinstance(node, QueryDBNode):
+            results = [v for k, v in self.db.items() if node.condition in str(v) or node.condition == "*"]
+            self.variables[node.variable] = results
+            print(f"[homo] Query '{node.condition}' from '{node.table}' → {len(results)} results")
+
+        elif isinstance(node, DeleteDBNode):
+            key = str(node.key).strip('"\'')
+            if key in self.db:
+                del self.db[key]
+                if self.db_file:
+                    with open(self.db_file, "w") as f: json.dump(self.db, f, indent=2)
+                print(f"[homo] Deleted '{key}'")
+            else:
+                print(f"[homo] Key '{key}' not found in database")
+
+        elif isinstance(node, InstallNode):
+            pkg = str(node.package).strip('"\'')
+            print(f"[homo] Installing '{pkg}'...")
+            r = subprocess.run([sys.executable, "-m", "pip", "install", pkg],
+                               capture_output=True, text=True)
+            print(f"[homo] {'Done' if r.returncode == 0 else 'Failed: ' + r.stderr[:120]}")
+
+        elif isinstance(node, CheckNode):
+            lval = self._show_value(str(node.left))
+            rval = self._show_value(str(node.right))
+            if str(lval) == str(rval):
+                print(f"[homo] Check passed: {node.left} == {node.right}")
+            else:
+                print(f"[homo] Check FAILED: {node.left} ({lval}) != {node.right} ({rval})")
+
+        elif isinstance(node, AssertNode):
+            if not self._eval_condition(node.condition, self.variables):
+                msg = str(self._show_value(node.message))
+                print(f"[homo] ASSERTION FAILED: {msg}")
+                raise AssertionError(msg)
+
+        elif isinstance(node, ConvertNode):
+            val    = self._show_value(str(node.variable))
+            action = str(node.action).lower()
+            conv = {"integer":   lambda v: int(float(v)),
+                    "int":       lambda v: int(float(v)),
+                    "float":     float,
+                    "string":    str,  
+                    "str":       str,
+                    "text":      str,
+                    "uppercase": lambda v: str(v).upper(),
+                    "lowercase": lambda v: str(v).lower(),
+                    "length":    lambda v: len(str(v)),
+                    "list":      list}
+            if action in conv:
+                val = conv[action](val)
+                self.variables[str(node.variable)] = val
+                print(f"[homo] {node.variable} → {action}: {val}")
+            else:
+                print(f"[homo] Unknown conversion: '{action}'")
+
+        elif isinstance(node, CreateTableNode):
+            self.tables[node.name] = []; print(f"[homo] Table '{node.name}' created")
+
+        elif isinstance(node, AddToTableNode):
+            row = [v.strip().strip('"\'') for v in str(node.row_data).strip('"\'').split(",")]
+            self.tables.setdefault(node.table, []).append(row)
+            print(f"[homo] Row added to '{node.table}': {row}")
+
+        elif isinstance(node, PrintTableNode):
+            tbl = self.tables.get(node.name, [])
+            if not tbl: print(f"[homo] Table '{node.name}' is empty"); return
+            if tbl:
+                col_w = [max(len(str(r[c])) for r in tbl if c < len(r)) for c in range(len(tbl[0]))]
+                sep   = "+-" + "-+-".join("-" * w for w in col_w) + "-+"
+                print(sep)
+                for row in tbl:
+                    print("| " + " | ".join(str(row[c]).ljust(col_w[c]) for c in range(len(row))) + " |")
+                    print(sep)
+
+        elif isinstance(node, ClassNode):
+            fields, methods = {}, {}
+            for line in node.body:
+                line = line.strip()
+                if line.startswith("set ") and " as " in line:
+                    parts = line[4:].split(" as ", 1)
+                    fields[parts[0].strip()] = self.evaluate(parts[1].strip(), self.variables)
+                elif line.startswith("define "):
+                    parts = line.split(); methods[parts[1]] = parts[2:]
+            self.classes[node.name] = {"fields": fields, "methods": methods}
+            print(f"[homo] Class '{node.name}' defined")
+
+        elif isinstance(node, CreateObjNode):
+            cls = str(node.class_name)
+            if cls not in self.classes:
+                print(f"[homo] Error: class '{cls}' not defined"); return
+            obj = dict(self.classes[cls]["fields"]); obj["__class__"] = cls
+            self.variables[str(node.instance_name)] = obj
+            print(f"[homo] Object '{node.instance_name}' created from '{cls}'")
+
+        elif isinstance(node, InheritClassNode):
+            child, parent = str(node.child), str(node.parent)
+            if parent not in self.classes:
+                print(f"[homo] Error: parent '{parent}' not defined"); return
+            p = self.classes[parent]
+            self.classes[child] = {"fields": dict(p["fields"]), "methods": dict(p["methods"])}
+            print(f"[homo] Class '{child}' inherits from '{parent}'")
+
+        elif isinstance(node, CallNode):
+            result = self.call_function(node.name, node.arguments, self.variables)
+            if result is not None: self.variables["result"] = result
+
+        elif isinstance(node, ReturnNode):
+            self.variables["_return"] = self.evaluate(node.expression, self.variables)
+
+        elif isinstance(node, VisitNode):
+            url = str(node.url).strip('"\'')
+            if not url.startswith("http"): url = "https://" + url
+            if _REQ:
+                try:
+                    r = _requests.get(url, timeout=10)
+                    self.variables["response"] = r.text[:500]
+                    print(f"[homo] {url} → {r.status_code}")
+                except Exception as e: print(f"[homo] Visit error: {e}")
+            else:
+                import webbrowser; webbrowser.open(url)
+                print(f"[homo] Opened '{url}' in browser")
+
+        elif isinstance(node, FetchNode):
+            url = str(node.url).strip('"\'')
+            if not url.startswith("http"): url = "https://" + url
+            if not _REQ:
+                print("[homo] install requests to use fetch"); return
+            try:
+                r = _requests.get(url, timeout=15)
+                try:   data = r.json()
+                except Exception: data = r.text
+                self.variables[node.variable] = data
+                print(f"[homo] Fetched {url} → stored in '{node.variable}' ({r.status_code})")
+            except Exception as e: print(f"[homo] Fetch error: {e}")
+
+        elif isinstance(node, PostNode):
+            url  = str(self.evaluate(node.url, self.variables)).strip('"\'')
+            data = self.variables.get(node.data, self.evaluate(node.data, self.variables))
+            if not url.startswith("http"): url = "https://" + url
+            if not _REQ:
+                print("[homo] install requests to use post"); return
+            try:
+                headers = {"Content-Type": "application/json"}
+                payload = data if isinstance(data, (dict, list)) else {"data": str(data)}
+                r = _requests.post(url, json=payload, headers=headers, timeout=15)
+                try:   resp = r.json()
+                except Exception: resp = r.text
+                self.variables[node.variable] = resp
+                print(f"[homo] Posted to {url} → {r.status_code}")
+            except Exception as e: print(f"[homo] Post error: {e}")
+
+        elif isinstance(node, ServeNode):
+            port = int(self.evaluate(str(node.port), self.variables))
+            html = _build_html(_WEB["current_page"])
+            os.makedirs("homo_site", exist_ok=True)
+            with open("homo_site/index.html", "w") as f: f.write(html)
+            for pname, _ in _WEB["pages"].items():
+                with open(f"homo_site/{pname}.html", "w") as f:
+                    f.write(_build_html(pname))
+            print(f"[homo] Site ready at http://localhost:{port}")
+            print(f"[homo] Serving homo_site/ — press Ctrl+C to stop")
+            try:
+                import http.server, socketserver, os as _os
+                _os.chdir("homo_site")
+                with socketserver.TCPServer(("", port), http.server.SimpleHTTPRequestHandler) as httpd:
+                    httpd.serve_forever()
+            except KeyboardInterrupt:
+                print("[homo] Server stopped")
+            except Exception as e:
+                print(f"[homo] Serve error: {e}")
+
+        elif isinstance(node, ConnectSocketNode):
+            url = str(node.url).strip('"\'')
+            try:
+                import websocket
+                self._socket = websocket.create_connection(url)
+                print(f"[homo] Socket connected to {url}")
+            except ImportError:
+                print("[homo] install websocket-client to use sockets")
+            except Exception as e:
+                print(f"[homo] Socket error: {e}")
+
+        elif isinstance(node, SendSocketNode):
+            msg = str(self._show_value(node.message))
+            if self._socket:
+                try:
+                    self._socket.send(msg)
+                    result = self._socket.recv()
+                    self.variables["socket_response"] = result
+                    print(f"[homo] Socket sent → received: {result[:100]}")
+                except Exception as e: print(f"[homo] Socket send error: {e}")
+            else:
+                print("[homo] No socket connected — use connect socket first")
+
+        elif isinstance(node, LoginNode):
+            provider = str(node.provider).lower()
+            print(f"[homo] Login with {provider} — set up your OAuth credentials in env vars:")
+            if provider == "google":
+                print("  set env GOOGLE_CLIENT_ID as <your-id>")
+                print("  set env GOOGLE_SECRET as <your-secret>")
+            elif provider == "github":
+                print("  set env GITHUB_CLIENT_ID as <your-id>")
+                print("  set env GITHUB_SECRET as <your-secret>")
+            elif provider == "email":
+                print("  Prompting email/password login flow")
+                email = input("Email: ").strip()
+                pwd   = input("Password: ").strip()
+                import hashlib
+                self.variables["current_user"] = {"email": email,
+                                                   "token": hashlib.sha256(pwd.encode()).hexdigest()[:16]}
+                print(f"[homo] Logged in as {email}")
+
+        elif isinstance(node, LogoutNode):
+            self.variables.pop("current_user", None)
+            print("[homo] Logged out")
+
+        elif isinstance(node, SendEmailNode):
+            to      = str(self.evaluate(node.to,      self.variables)).strip('"\'')
+            subject = str(self.evaluate(node.subject, self.variables)).strip('"\'')
+            body    = str(self.evaluate(node.body,    self.variables)).strip('"\'')
+            smtp_host = os.environ.get("SMTP_HOST", "")
+            smtp_user = os.environ.get("SMTP_USER", "")
+            smtp_pass = os.environ.get("SMTP_PASS", "")
+            if smtp_host and smtp_user and smtp_pass:
+                try:
+                    import smtplib
+                    from email.mime.text import MIMEText
+                    msg = MIMEText(body)
+                    msg["Subject"] = subject; msg["From"] = smtp_user; msg["To"] = to
+                    with smtplib.SMTP_SSL(smtp_host, 465) as s:
+                        s.login(smtp_user, smtp_pass); s.send_message(msg)
+                    print(f"[homo] Email sent to {to}")
+                except Exception as e:
+                    print(f"[homo] Email error: {e}")
+            else:
+                print(f"[homo] Email → {to} | Subject: {subject} | Body: {body[:60]}")
+                print("[homo] Set SMTP_HOST, SMTP_USER, SMTP_PASS env vars to actually send")
+
+        elif isinstance(node, ExportPDFNode):
+            fname = self._eval_path(node.filename, self.variables)
+            if not fname.endswith(".pdf"): fname += ".pdf"
+            try:
+                from reportlab.pdfgen import canvas as _canvas
+                c = _canvas.Canvas(fname)
+                c.setTitle(_WEB["title"])
+                y = 800
+                c.setFont("Helvetica-Bold", 18)
+                c.drawString(50, y, _WEB["title"]); y -= 30
+                c.setFont("Helvetica", 12)
+                for line in _web_page(_WEB["current_page"]):
+                    import html as _html
+                    text = _re.sub('<[^>]+>', '', _html.unescape(line))
+                    if text.strip():
+                        c.drawString(50, y, text[:100]); y -= 18
+                        if y < 50: c.showPage(); y = 800
+                c.save()
+                print(f"[homo] PDF exported to '{fname}'")
+            except ImportError:
+                print("[homo] install reportlab to use export pdf")
+
+        elif isinstance(node, ResizeImageNode):
+            file = self._eval_path(node.file, self.variables)
+            w    = int(self.evaluate(node.width,   self.variables))
+            h    = int(self.evaluate(node.height,  self.variables))
+            try:
+                from PIL import Image
+                img = Image.open(file)
+                img = img.resize((w, h))
+                img.save(file)
+                print(f"[homo] Image '{file}' resized to {w}×{h}")
+            except ImportError:
+                print("[homo] install Pillow to use resize image")
+            except Exception as e:
+                print(f"[homo] Resize error: {e}")
+
+        elif isinstance(node, HashNode):
+            import hashlib
+            val = str(self._show_value(node.value)).encode()
+            h   = hashlib.sha256(val).hexdigest()
+            self.variables[node.variable] = h
+            print(f"[homo] Hash of '{node.value}' → stored in '{node.variable}'")
+
+        elif isinstance(node, EncryptNode):
+            val = str(self._show_value(node.variable)).encode()
+            key = str(self._show_value(node.key))
+            result_var = getattr(node, "result", "result") or "result"
+            try:
+                from cryptography.fernet import Fernet
+                import base64, hashlib
+                k = base64.urlsafe_b64encode(hashlib.sha256(key.encode()).digest())
+                fnet = Fernet(k)
+                encrypted = fnet.encrypt(val).decode()
+                self.variables[result_var] = encrypted
+                print(f"[homo] '{node.variable}' encrypted → stored in '{result_var}'")
+            except ImportError:
+                print("[homo] install cryptography to use encrypt")
+
+        elif isinstance(node, DecryptNode):
+            key = str(self._show_value(node.key))
+            result_var = getattr(node, "result", "result") or "result"
+            try:
+                from cryptography.fernet import Fernet
+                import base64, hashlib
+                k = base64.urlsafe_b64encode(hashlib.sha256(key.encode()).digest())
+                fnet = Fernet(k)
+                # node.variable might be the result var name holding the ciphertext
+                cipher_val = self.variables.get(node.variable, str(self._show_value(node.variable)))
+                decrypted = fnet.decrypt(cipher_val.encode()).decode()
+                self.variables[result_var] = decrypted
+                print(f"[homo] '{node.variable}' decrypted → stored in '{result_var}'")
+            except ImportError:
+                print("[homo] install cryptography to use decrypt")
+            except Exception as e:
+                print(f"[homo] Decrypt error: {e}")
+
+        elif isinstance(node, DeleteFileNode):
+            path = self._eval_path(node.path, self.variables)
+            try:
+                os.remove(path); print(f"[homo] Deleted '{path}'")
+            except Exception as e: print(f"[homo] Delete error: {e}")
+
+        elif isinstance(node, MakeDirNode):
+            path = self._eval_path(node.path, self.variables)
+            os.makedirs(path, exist_ok=True)
+            print(f"[homo] Folder '{path}' created")
+
+        elif isinstance(node, ListFilesNode):
+            path = self._eval_path(node.path, self.variables)
+            try:
+                files = os.listdir(path)
+                self.variables[node.variable] = files
+                print(f"[homo] {len(files)} files in '{path}' → stored in '{node.variable}'")
+            except Exception as e: print(f"[homo] List error: {e}")
+
+        elif isinstance(node, CopyNode):
+            import shutil
+            src = self._eval_path(node.source, self.variables)
+            dst = self._eval_path(node.destination, self.variables)
+            try: shutil.copy2(src, dst); print(f"[homo] Copied '{src}' → '{dst}'")
+            except Exception as e: print(f"[homo] Copy error: {e}")
+
+        elif isinstance(node, AppendNode):
+            val = self.evaluate(node.value, self.variables)
+            lst = node.lst
+            target = self.variables.get(lst, [])
+            if not isinstance(target, list): target = []
+            target.append(val); self.variables[lst] = target
+
+        elif isinstance(node, RemoveNode):
+            val = self.evaluate(node.value, self.variables)
+            lst = node.lst
+            target = self.variables.get(lst, [])
+            if isinstance(target, list) and val in target:
+                target.remove(val); self.variables[lst] = target
+                print(f"[homo] Removed {val!r} from '{lst}'")
+            else:
+                print(f"[homo] {val!r} not found in '{lst}'")
+
+        elif isinstance(node, CountNode):
+
+            target = self.variables.get(node.lst, [])
+
+            value = self.evaluate(node.value, self.variables)
+
+            if isinstance(target, list):
+                count = target.count(value)
+            elif isinstance(target, str):
+                count = target.count(str(value))
+            else:
+                count = 0
+
+            self.variables[node.variable] = count
+
+            print(
+                f"[homo] Count of {value!r} in '{node.lst}' = {count}"
+            )
+
+        elif isinstance(node, SortNode):
+            target = self.variables.get(node.variable, [])
+            if isinstance(target, list):
+                target.sort(reverse=node.descending)
+                self.variables[node.variable] = target
+                print(f"[homo] Sorted '{node.variable}'" + (" descending" if node.descending else ""))
+
+        elif isinstance(node, ReverseNode):
+
+            source_value = self.variables.get(node.source, "")
+
+            if isinstance(source_value, list):
+                reversed_value = list(reversed(source_value))
+            else:
+                reversed_value = str(source_value)[::-1]
+
+            self.variables[node.target] = reversed_value
+
+            print(
+                f"[homo] '{node.source}' reversed -> '{node.target}'"
+            )
+
+        elif isinstance(node, FilterNode):
+            source = self._resolve_iterable(node.variable)
+            result = []
+            for item in source:
+                scope = dict(self.variables)
+                for alias in (node.variable, "item", "x", "num", "val",
+                              "element", "name", "n", "i"):
+                    scope[alias] = item
+                if self._eval_condition(node.condition, scope):
+                    result.append(item)
+            self.variables[node.result] = result
+            print(f"[homo] Filtered '{node.variable}' → {len(result)} items in '{node.result}'")
+
+        elif isinstance(node, MapNode):
+            source = self._resolve_iterable(node.variable)
+            result = []
+            for item in source:
+                scope = dict(self.variables)
+                for alias in (node.variable, "item", "x", "num", "val",
+                              "element", "name", "n", "i"):
+                    scope[alias] = item
+                result.append(self.evaluate(node.expression, scope))
+            self.variables[node.result] = result
+            print(f"[homo] Mapped '{node.variable}' → '{node.result}'")
+
+        elif isinstance(node, JoinNode):
+            lst = self._resolve_iterable(node.lst)
+            sep = str(node.separator)
+            self.variables[node.variable] = sep.join(str(x) for x in lst)
+            print(f"[homo] Joined '{node.lst}' → '{node.variable}'")
+
+        elif isinstance(node, SplitNode):
+            val = str(self._show_value(node.variable))
+            sep = str(node.separator)
+            self.variables[node.result] = val.split(sep)
+            print(f"[homo] Split '{node.variable}' → '{node.result}'")
+
+        elif isinstance(node, SetEnvNode):
+            val = str(self.evaluate(node.value, self.variables)).strip('"\'')
+            os.environ[node.key] = val
+            self.variables[node.key] = val
+            print(f"[homo] env {node.key} set")
+
+        elif isinstance(node, GetEnvNode):
+            val = os.environ.get(node.key, "")
+            self.variables[node.variable] = val
+            print(f"[homo] env {node.key} → '{node.variable}'")
+
+        elif isinstance(node, LogNode):
+            msg = str(self._show_value(node.message))
+            self._log(msg)
+
+        elif isinstance(node, SleepNode):
+            secs = float(self.evaluate(str(node.seconds), self.variables))
+            print(f"[homo] Sleeping {secs}s...")
+            _time.sleep(secs)
+
+        elif isinstance(node, RunNode):
+            cmd = str(self.evaluate(node.command, self.variables)).strip('"\'')
+            print(f"[homo] Running: {cmd}")
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            self.variables["run_output"] = r.stdout
+            print(r.stdout or r.stderr)
+
+        elif isinstance(node, SetResponsiveNode):
+            _WEB["responsive"] = (node.state != "off")
+            print(f"[homo] Responsive {'enabled' if _WEB['responsive'] else 'disabled'}")
+
+        elif isinstance(node, SetThemeNode):
+            _WEB["theme"] = node.theme.lower()
+            print(f"[homo] Theme set to '{_WEB['theme']}'")
+
+        elif isinstance(node, SetMetaNode):
+            key = node.key.lower()
+            val = str(self.evaluate(node.key_value, self.variables)).strip('"\'')
+            if key == "title": _WEB["title"] = val
+            elif key in ("description", "desc"): _WEB["description"] = val
+            elif key in ("keywords", "tags"):    _WEB["keywords"] = val
+            print(f"[homo] Meta {key} → '{val}'")
+
+        elif isinstance(node, SetStyleNode):
+            _WEB["styles"].setdefault(node.element, {}).update(node.styles)
+            print(f"[homo] Style set on '{node.element}'")
+
+        elif isinstance(node, SetLayoutNode):
+            if node.layout_type == "columns":
+                _WEB["layout"] = ("columns", node.value or "3")
+            else:
+                _WEB["layout"] = node.layout_type
+            print(f"[homo] Layout → {_WEB['layout']}")
+
+        elif isinstance(node, AddNavNode):
+            _WEB["nav_links"] = node.links
+            print(f"[homo] Nav added with {len(node.links)} links")
+
+        elif isinstance(node, AddHeaderNode):
+            _WEB["header"] = str(self.evaluate(node.text, self.variables)).strip('"\'')
+            print(f"[homo] Header → '{_WEB['header']}'")
+
+        elif isinstance(node, AddFooterNode):
+            _WEB["footer"] = str(self.evaluate(node.text, self.variables)).strip('"\'')
+            print(f"[homo] Footer → '{_WEB['footer']}'")
+
+        elif isinstance(node, AddSectionNode):
+            sid  = str(node.section_id).strip('"\'')
+            html_lines = [f'<section id="{sid}">']
+            for bline in node.body:
+                bline = bline.strip()
+                if bline.startswith("show "):
+                    content = str(self._show_value(bline[5:].strip()))
+                    html_lines.append(f"  <p>{content}</p>")
+                elif bline.startswith("add header "):
+                    html_lines.append(f"  <h2>{bline[11:].strip().strip(chr(34))}</h2>")
+                else:
+                    html_lines.append(f"  <p>{bline}</p>")
+            html_lines.append("</section>")
+            _web_page(_WEB["current_page"]).extend(html_lines)
+            print(f"[homo] Section '{sid}' added")
+
+        elif isinstance(node, AddFormNode):
+            fid  = str(node.form_id).strip('"\'')
+            html = [f'<form class="homo-form" id="{fid}" onsubmit="return false">']
+            for bline in node.body:
+                bline = bline.strip()
+                if bline.startswith("add input "):
+                    label = bline[10:].strip().strip('"\'')
+                    ftype = "email" if "@" in label.lower() or "email" in label.lower() \
+                            else "password" if "password" in label.lower() else "text"
+                    html.append(f'  <input type="{ftype}" placeholder="{label}" name="{label.replace(" ","_")}">')
+                elif bline.startswith("add button "):
+                    label = bline[11:].strip().strip('"\'')
+                    html.append(f'  <button type="submit">{label}</button>')
+                elif bline.startswith("add textarea "):
+                    label = bline[13:].strip().strip('"\'')
+                    html.append(f'  <textarea placeholder="{label}" rows="4"></textarea>')
+            html.append("</form>")
+            _web_page(_WEB["current_page"]).extend(html)
+            print(f"[homo] Form '{fid}' added")
+
+        elif isinstance(node, AddCardNode):
+            title = str(self.evaluate(node.title, self.variables)).strip('"\'')
+            html  = [f'<div class="homo-card">',
+                     f'  <h3>{title}</h3>']
+            for bline in node.body:
+                bline = bline.strip()
+                if bline.startswith("show "):
+                    content = str(self._show_value(bline[5:].strip()))
+                    html.append(f"  <p>{content}</p>")
+                else:
+                    html.append(f"  <p>{bline}</p>")
+            html.append("</div>")
+            _web_page(_WEB["current_page"]).extend(html)
+            print(f"[homo] Card '{title}' added")
+
+        elif isinstance(node, AddImageNode):
+            src = str(self.evaluate(node.src, self.variables)).strip('"\'')
+            alt = str(node.alt).strip('"\'')
+            _web_page(_WEB["current_page"]).append(f'<img src="{src}" alt="{alt}" class="homo-img">')
+            print(f"[homo] Image '{src}' added")
+
+        elif isinstance(node, AddLinkNode):
+            text = str(self.evaluate(node.text, self.variables)).strip('"\'')
+            url  = str(self.evaluate(node.url,  self.variables)).strip('"\'')
+            _web_page(_WEB["current_page"]).append(f'<p><a href="{url}" style="color:var(--accent)">{text}</a></p>')
+            print(f"[homo] Link '{text}' → '{url}' added")
+
+        elif isinstance(node, AddListNode):
+            items = self._resolve_iterable(node.variable)
+            html  = ['<ul class="homo-list">'] + [f"  <li>{item}</li>" for item in items] + ["</ul>"]
+            _web_page(_WEB["current_page"]).extend(html)
+            print(f"[homo] List from '{node.variable}' added ({len(items)} items)")
+
+        elif isinstance(node, AddScriptNode):
+            _WEB["extra_scripts"].append(node.src)
+            print(f"[homo] Script '{node.src}' linked")
+
+        elif isinstance(node, AddStylesheetNode):
+            _WEB["extra_styles"].append(node.href)
+            print(f"[homo] Stylesheet '{node.href}' linked")
+
+        elif isinstance(node, AddComponentNode):
+            name  = str(node.name).strip('"\'')
+            lines = []
+            for bline in node.body:
+                bline = bline.strip()
+                if bline.startswith("show "):
+                    content = str(self._show_value(bline[5:].strip()))
+                    lines.append(f"<p>{content}</p>")
+                elif bline.startswith("add header "):
+                    lines.append(f"<h3>{bline[11:].strip().strip(chr(34))}</h3>")
+                else:
+                    lines.append(f"<span>{bline}</span>")
+            _WEB["components"][name] = "\n".join(lines)
+            print(f"[homo] Component '{name}' defined")
+
+        elif isinstance(node, UseComponentNode):
+            name = str(node.name).strip('"\'')
+            html = _WEB["components"].get(name, f"")
+            _web_page(_WEB["current_page"]).append(f'<div class="homo-component" id="comp-{name}">{html}</div>')
+            print(f"[homo] Component '{name}' used")
+
+        elif isinstance(node, RouteNode):
+            _WEB["routes"][node.path] = node.page
+            print(f"[homo] Route '{node.path}' → page '{node.page}'")
+
+        elif isinstance(node, OnEventNode):
+            elem  = str(node.element).strip('"\'')
+            event = str(node.event).strip('"\'')
+            js_lines = []
+            for bline in node.body:
+                bline = bline.strip()
+                if bline.startswith("show "):
+                    content = bline[5:].strip().strip('"\'')
+                    js_lines.append(f'alert("{content}");')
+                elif bline.startswith("visit "):
+                    url = bline[6:].strip().strip('"\'')
+                    js_lines.append(f'window.location.href = "{url}";')
+                elif bline.startswith("fetch "):
+                    js_lines.append(f'fetch("{bline[6:]}").then(r=>r.json()).then(console.log);')
+                else:
+                    js_lines.append(f'console.log("{bline}");')
+            js = "\n  ".join(js_lines)
+            script = (f'<script>'
+                      f'document.addEventListener("DOMContentLoaded", function(){{'
+                      f'  var el = document.getElementById("{elem}") || document.querySelector(".{elem}");'
+                      f'  if(el) el.addEventListener("{event}", function(){{{ js }}});'
+                      f'}});</script>')
+            _web_page(_WEB["current_page"]).append(script)
+            print(f"[homo] Event '{event}' on '{elem}' wired")
+
+        elif isinstance(node, ShowChartNode):
+            chart_type = str(node.chart_type).lower()
+            var        = str(node.variable)
+            data       = self.variables.get(var, [])
+            try:
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots()
+                if chart_type == "bar":
+                    if isinstance(data, dict):
+                        ax.bar(list(data.keys()), list(data.values()))
+                    else:
+                        ax.bar(range(len(data)), data)
+                elif chart_type == "line":
+                    ax.plot(list(data.values()) if isinstance(data, dict) else data)
+                elif chart_type == "pie":
+                    if isinstance(data, dict):
+                        ax.pie(list(data.values()), labels=list(data.keys()), autopct="%1.1f%%")
+                    else:
+                        ax.pie(data, autopct="%1.1f%%")
+                ax.set_title(var); plt.tight_layout(); plt.show()
+            except ImportError:
+                print("[homo] install matplotlib to use show chart")
+
+        elif isinstance(node, CreateAppNode):
+            app_type = str(node.app_type)
+            if app_type == "desktop":
+                root = self._get_tk()
+                if root: root.deiconify(); root.title("Homo App"); root.geometry("600x400")
+            elif app_type == "website":
+                _WEB["current_page"] = "main"
+                print("[homo] Website scaffolded — use add header, add section, set theme, etc.")
+            else:
+                print(f"[homo] {app_type} app scaffolded")
+
+        elif isinstance(node, PageNode):
+            import ast as _ast_mod
+            page_name = str(node.name)
+            _WEB["current_page"] = page_name
+            page = _web_page(page_name)
+
+            page_fields = []  
+
+            for line in node.body:
+                if line.startswith("title "):
+                    title_text = line[6:].strip().strip('"\'')
+                    _WEB["title"] = title_text
+                    page.append(f'<h1 style="margin-bottom:1.25rem">{title_text}</h1>')
+
+                elif line.startswith("text "):
+                    raw = line[5:].strip()
+                    text_val = raw.strip('"\'')
+                    resolved = str(self.variables.get(text_val, text_val))
+                    page.append(f'<p class="homo-show" style="margin-bottom:.75rem">{resolved}</p>')
+
+                elif line.startswith("textbox "):
+                    var_name = line[8:].strip()
+                    label    = var_name.replace("_", " ").title()
+                    field_id = f"homo_{var_name}"
+                    page.append(
+                        f'<div class="homo-field" style="margin-bottom:.75rem">'
+                        f'<label for="{field_id}" style="display:block;margin-bottom:.3rem;'
+                        f'font-weight:500">{label}</label>'
+                        f'<input id="{field_id}" name="{var_name}" type="text" '
+                        f'placeholder="{label}" '
+                        f'style="padding:.5rem .75rem;border:1px solid var(--border);'
+                        f'border-radius:6px;background:var(--bg);color:var(--fg);'
+                        f'font-size:1rem;width:100%;max-width:420px"></div>'
+                    )
+                    page_fields.append(var_name)
+
+                elif line.startswith("ask "):
+                    rest = line[4:].strip()
+                    if rest.startswith('"'):
+                        end = rest.index('"', 1)
+                        prompt_text = rest[1:end].rstrip().rstrip(":")
+                        var_name = rest[end + 1:].strip().lstrip(",").strip()
+                    else:
+                        parts = rest.split(",", 1)
+                        prompt_text = parts[0].strip()
+                        var_name = parts[1].strip() if len(parts) > 1 else parts[0]
+                    field_id = f"homo_{var_name}"
+                    page.append(
+                        f'<div class="homo-field" style="margin-bottom:.75rem">'
+                        f'<label for="{field_id}" style="display:block;margin-bottom:.3rem;'
+                        f'font-weight:500">{prompt_text}</label>'
+                        f'<input id="{field_id}" name="{var_name}" type="text" '
+                        f'style="padding:.5rem .75rem;border:1px solid var(--border);'
+                        f'border-radius:6px;background:var(--bg);color:var(--fg);'
+                        f'font-size:1rem;width:100%;max-width:420px"></div>'
+                    )
+                    page_fields.append(var_name)
+
+                elif line.startswith("show "):
+                    raw = line[5:].strip()
+                    text_val = raw.strip('"\'')
+                    resolved = str(self.variables.get(text_val, text_val))
+                    page.append(f'<p class="homo-show" style="margin-bottom:.75rem">{resolved}</p>')
+
+                elif line.startswith("__BUTTON__"):
+                    rest     = line[len("__BUTTON__"):]
+                    btn_label, actions_raw = rest.split("__ACTIONS__", 1)
+                    try:
+                        actions = _ast_mod.literal_eval(actions_raw)
+                    except Exception:
+                        actions = []
+
+                    js_parts = []
+                    toast_msg = None
+
+                    for f in page_fields:
+                        js_parts.append(f"var {f}=document.getElementById('homo_{f}')"
+                                        f"?document.getElementById('homo_{f}').value:'';")
+
+                    for action in actions:
+                        action = action.strip()
+
+                        if action.startswith("save "):
+                            var = action[5:].strip()
+                            js_parts.append(f"localStorage.setItem('{var}',{var});")
+
+                        elif action.startswith("show "):
+                            msg = action[5:].strip().strip('"\'')
+                            toast_msg = msg
+                            js_parts.append(
+                                f"var _t=document.getElementById('homo_toast');"
+                                f"_t.textContent='{msg}';"
+                                f"_t.style.display='block';"
+                                f"setTimeout(function(){{_t.style.display='none';}},3000);"
+                            )
+
+                        elif action.startswith("visit ") or action.startswith("go to "):
+                            dest = action.split(" ", 2)[-1].strip().strip('"\'')
+                            href = dest if dest.startswith("http") else (dest + ".html")
+                            js_parts.append(f"window.location.href='{href}';")
+
+                        elif action.startswith("call "):
+                            fn = action[5:].strip()
+                            js_parts.append(f"if(typeof {fn}==='function'){fn}();")
+
+                        elif action.startswith("clear"):
+                            for f in page_fields:
+                                js_parts.append(
+                                    f"var _el=document.getElementById('homo_{f}');"
+                                    f"if(_el)_el.value='';"
+                                )
+
+                        elif action.startswith("alert "):
+                            msg = action[6:].strip().strip('"\'')
+                            js_parts.append(f"alert('{msg}');")
+
+                        elif action.startswith("validate"):
+                            checks = "".join(
+                                f"if(!{f}){{alert('{f.replace('_',' ')} is required');return;}}"
+                                for f in page_fields
+                            )
+                            js_parts.insert(1, checks)  
+
+                    onclick_js = " ".join(js_parts)
+
+                    if not any('homo_toast' in h for h in page):
+                        page.append(
+                            '<div id="homo_toast" style="display:none;position:fixed;'
+                            'bottom:1.5rem;left:50%;transform:translateX(-50%);'
+                            'background:var(--accent);color:#fff;padding:.65rem 1.4rem;'
+                            'border-radius:8px;font-weight:600;font-size:.95rem;'
+                            'box-shadow:0 4px 16px rgba(0,0,0,.18);z-index:9999"></div>'
+                        )
+
+                    page.append(
+                        f'<button class="homo-btn" style="margin-top:.5rem" '
+                        f'onclick="{onclick_js}">{btn_label}</button>'
+                    )
+
+                elif line.startswith("button "):
+                    label = line[7:].strip().strip('"\'')
+                    js_reads = " ".join(
+                        f"var {f}=document.getElementById('homo_{f}')"
+                        f"?document.getElementById('homo_{f}').value:'';"
+                        for f in page_fields
+                    )
+                    if not any('homo_toast' in h for h in page):
+                        page.append(
+                            '<div id="homo_toast" style="display:none;position:fixed;'
+                            'bottom:1.5rem;left:50%;transform:translateX(-50%);'
+                            'background:var(--accent);color:#fff;padding:.65rem 1.4rem;'
+                            'border-radius:8px;font-weight:600;font-size:.95rem;'
+                            'box-shadow:0 4px 16px rgba(0,0,0,.18);z-index:9999"></div>'
+                        )
+                    page.append(
+                        f'<button class="homo-btn" style="margin-top:.5rem" '
+                        f'onclick="{js_reads}">{label}</button>'
+                    )
+
+                elif line.startswith("link ") and " to " in line:
+                    parts = line[5:].split(" to ", 1)
+                    lbl  = parts[0].strip().strip('"\'')
+                    dest = parts[1].strip().strip('"\'')
+                    href = dest if dest.startswith("http") else (dest + ".html")
+                    page.append(
+                        f'<a href="{href}" class="homo-btn" '
+                        f'style="display:inline-block;text-decoration:none;margin-top:.5rem">'
+                        f'{lbl}</a>'
+                    )
+
+                elif line.startswith("ask ai "):
+                    var_name = line[7:].strip()
+                    field_id = f"homo_{var_name}"
+                    page.append(
+                        f'<div id="homo_ai_result" style="margin-top:1rem;padding:.75rem;'
+                        f'border:1px solid var(--border);border-radius:6px;'
+                        f'background:var(--card-bg);display:none"></div>'
+                        f'<script>\n'
+                        f'function homoAskAI(){{\n'
+                        f'  var q=document.getElementById("{field_id}")'
+                        f'?document.getElementById("{field_id}").value:"";\n'
+                        f'  if(!q)return;\n'
+                        f'  var box=document.getElementById("homo_ai_result");\n'
+                        f'  box.style.display="block";box.textContent="Thinking...";\n'
+                        f'  fetch("https://api.anthropic.com/v1/messages",{{\n'
+                        f'    method:"POST",\n'
+                        f'    headers:{{"Content-Type":"application/json",'
+                        f'"x-api-key":window.HOMO_API_KEY||"",'
+                        f'"anthropic-version":"2023-06-01",'
+                        f'"anthropic-dangerous-direct-browser-access":"true"}},\n'
+                        f'    body:JSON.stringify({{model:"claude-haiku-4-5-20251001",'
+                        f'max_tokens:256,messages:[{{role:"user",content:q}}]}})\n'
+                        f'  }}).then(r=>r.json())\n'
+                        f'    .then(d=>{{box.textContent=d.content[0].text;}})\n'
+                        f'    .catch(e=>{{box.textContent="AI error: "+e;}});\n'
+                        f'}}\n'
+                        f'</script>'
+                    )
+                    for pidx in range(len(page) - 1, -1, -1):
+                        if page[pidx].startswith('<button') and 'onclick="' in page[pidx]:
+                            page[pidx] = page[pidx].replace('onclick="', 'onclick="homoAskAI();')
+                            break
+
+            import os as _os
+            _os.makedirs("homo_site", exist_ok=True)
+            for pname in list(_WEB["pages"].keys()):
+                pfile = ("homo_site/index.html" if pname in ("main", "home")
+                         else f"homo_site/{pname}.html")
+                with open(pfile, "w", encoding="utf-8") as fh:
+                    fh.write(_build_html(pname))
+            all_pages = list(_WEB["pages"].keys())
+            if len(all_pages) > 1 and not _WEB["nav_links"]:
+                _WEB["nav_links"] = [
+                    ("/" if p in ("main", "home") else f"/{p}.html")
+                    for p in all_pages
+                ]
+                for pname in all_pages:
+                    pfile = ("homo_site/index.html" if pname in ("main", "home")
+                             else f"homo_site/{pname}.html")
+                    with open(pfile, "w", encoding="utf-8") as fh:
+                        fh.write(_build_html(pname))
+            out_file = ("homo_site/index.html" if page_name in ("main", "home")
+                        else f"homo_site/{page_name}.html")
+            print(f"[homo] Page '{page_name}' → {out_file}")
+
+        elif isinstance(node, WindowNode):
+            root = self._get_tk()
+            if root:
+                root.deiconify(); root.title(str(node.name))
+                for line in node.body:
+                    if line.startswith("show "):
+                        tk.Label(root, text=line[5:].strip().strip('"\''), font=("Arial", 12)).pack(pady=4)
+                print(f"[homo] Window '{node.name}' rendered")
+
+        elif isinstance(node, CompileNode):
+            target = str(node.target)
+            if "website" in target:
+                html = _build_html(_WEB["current_page"])
+                os.makedirs("homo_site", exist_ok=True)
+                with open("homo_site/index.html", "w") as f: f.write(html)
+                for pname in _WEB["pages"]:
+                    pfile = "homo_site/index.html" if pname == "main" else f"homo_site/{pname}.html"
+                    with open(pfile, "w") as f: f.write(_build_html(pname))
+                if _WEB["routes"]:
+                    router = "const routes = " + json.dumps(_WEB["routes"]) + ";\n"
+                    router += ("window.addEventListener('hashchange', function(){"
+                               "  var page = routes[location.hash.slice(1)] || 'main';"
+                               "  fetch(page+'.html').then(r=>r.text()).then(t=>{document.open();document.write(t);document.close();});"
+                               "});\n")
+                    with open("homo_site/router.js", "w") as f: f.write(router)
+                    _WEB["extra_scripts"].append("router.js")
+                print(f"[homo] Website published → homo_site/index.html")
+            else:
+                print(f"[homo] Compiling → '{target}'")
+                r = subprocess.run([sys.executable, "-m", "PyInstaller", "--onefile", "main.py"],
+                                   capture_output=True, text=True)
+                print(r.stdout[:300] or r.stderr[:300])
+
+        elif isinstance(node, MediaNode):
+            action = str(node.action)
+            target = str(self.evaluate(str(node.target), self.variables)).strip('"\'')
+            if action in ("open", "show"):
+                import webbrowser; webbrowser.open(target)
+            elif action == "chart":
+                try:
+                    import matplotlib.pyplot as plt
+                    data = self.variables.get(target, [target])
+                    plt.plot(data if isinstance(data, list) else [data])
+                    plt.title(target); plt.show()
+                except ImportError:
+                    print("[homo] install matplotlib to use show chart")
+            else:
+                print(f"[homo] Media '{action}' on '{target}'")
+
+        elif isinstance(node, OSNode):
+            comp = str(node.component).lower()
+            try:
+                import psutil
+                if "battery" in comp:
+                    b = psutil.sensors_battery()
+                    print(f"Battery: {b.percent:.0f}%" if b else "No battery")
+                elif "memory" in comp:
+                    m = psutil.virtual_memory()
+                    print(f"Memory: {m.used//1024//1024} MB / {m.total//1024//1024} MB")
+                elif "cpu" in comp:
+                    print(f"CPU: {psutil.cpu_percent(interval=0.5):.1f}%")
+            except ImportError:
+                import platform; print(f"System: {platform.system()} {platform.release()}")
+
+        elif isinstance(node, TaskNode):
+            import threading
+            action = str(node.action)
+            threading.Thread(target=lambda: print(f"[homo] Task '{action}' done"),
+                             daemon=True).start()
+            print(f"[homo] Task '{action}' started")
+
+        elif isinstance(node, BotNode):
+            print(f"[homo] {node.bot_type} created (use ask ai to query)")
+        elif isinstance(node, BrainNode):
+            print(f"[homo] {node.brain_type} brain ready")
+            try:
+                from sklearn.linear_model import LinearRegression
+                self.variables["_brain"] = LinearRegression()
+            except ImportError:
+                print("[homo] install scikit-learn for brain features")
+        elif isinstance(node, TeachNode):
+            data = self.variables.get(str(node.data), str(node.data))
+            print(f"[homo] Teaching {node.target} with: {str(data)[:80]}")
+        elif isinstance(node, PredictNode):
+            print(f"[homo] Predict: {node.kwargs}")
+        elif isinstance(node, AskPredictNode):
+            print(f"[homo] Prediction for: {node.input_val}")
+
+        elif isinstance(node, AskAINode):
+            prompt  = str(self._show_value(str(node.prompt)))
+            var_out = getattr(node, "variable", "ai_response") or "ai_response"
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not api_key: print("[homo] Set ANTHROPIC_API_KEY to use ask ai"); return
+            try:
+                import urllib.request, json as _json
+                payload = _json.dumps({
+                    "model": "claude-haiku-4-5-20251001", "max_tokens": 256,
+                    "messages": [{"role": "user", "content": prompt}]
+                }).encode()
+                req = urllib.request.Request(
+                    "https://api.anthropic.com/v1/messages", data=payload,
+                    headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                             "content-type": "application/json"})
+                with urllib.request.urlopen(req) as resp:
+                    data = _json.loads(resp.read())
+                    answer = data["content"][0]["text"]
+                    self.variables[var_out] = answer
+                    self.variables["ai_response"] = answer 
+                    print(answer)
+            except Exception as e: print(f"[homo] AI error: {e}")
+
+        elif isinstance(node, DrawNode):
+            shape = str(node.shape).lower()
+            try: size = int(self.evaluate(str(node.size), self.variables))
+            except: size = 5
+            if shape == "circle":
+                for y in range(-size, size + 1):
+                    print("".join("*" if (x/2)**2 + y**2 <= size**2 else " "
+                                  for x in range(-size*2, size*2+1)))
+            elif shape == "square":
+                print(("*" * size + "\n") * size)
+            elif shape == "triangle":
+                for i in range(1, size + 1):
+                    print(" " * (size - i) + "*" * (2*i - 1))
+            else:
+                print(f"[homo] Unknown shape: {shape}")
+
+        elif isinstance(node, CreateWindowNode):
+            root = self._get_tk()
+            if root:
+                root.deiconify()
+                title = str(self.evaluate(str(node.title), self.variables)).strip('"\'')
+                root.title(title); root.geometry("400x300")
+                print(f"[homo] Window '{title}' opened")
+
+        elif isinstance(node, CreateButtonNode):
+            root = self._get_tk()
+            if root:
+                label = str(self.evaluate(str(node.label), self.variables)).strip('"\'')
+                tk.Button(root, text=label,
+                          command=lambda l=label: print(f"[homo] '{l}' clicked")).pack(pady=5)
+                print(f"[homo] Button '{label}' added")
+
+        elif isinstance(node, CreatePlayerNode):
+            self.variables["player"] = {"x": 0, "y": 0, "health": 100}
+            print("[homo] Player created at (0,0)")
+        elif isinstance(node, MovePlayerNode):
+            p = self.variables.get("player", {"x": 0, "y": 0})
+            d = str(node.direction).lower()
+            if d == "right": p["x"] += 1
+            elif d == "left": p["x"] -= 1
+            elif d == "up":   p["y"] -= 1
+            elif d == "down": p["y"] += 1
+            self.variables["player"] = p
+            print(f"[homo] Player → ({p['x']}, {p['y']})")
+        elif isinstance(node, JumpPlayerNode):
+            print("[homo] Player jumped!")
+
+        elif isinstance(node, UseNode):
+            mod = str(node.module_name).strip('"\'')
+            module_ns = self._load_homo_module(mod)
+            if module_ns:
+                self._attach_module(mod, module_ns)
+                # Also merge module's functions and variables directly 
+                # so call hello works without module.hello prefix
+                mod_interp = module_ns.interpreter
+                for fname, fdef in mod_interp.functions.items():
+                    if fname not in self.functions:
+                        self.functions[fname] = fdef
+                for vname, vval in mod_interp.variables.items():
+                    if vname not in self.variables:
+                        self.variables[vname] = vval
+            else:
+                try:
+                    import importlib
+                    py_mod = importlib.import_module(mod)
+                    self._attach_module(mod, py_mod)
+                    print(f"[homo] Module '{mod}' imported")
+                except ImportError:
+                    print(f"[homo] Module '{mod}' not found — try: install {mod}")
+
+        else:
+            pass

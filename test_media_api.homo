@@ -1,0 +1,21 @@
+# Test Script: Media, Utilities and Web Requests
+show "--- Testing Media and Utilities ---"
+
+# Test drawing ASCII shapes
+show "Drawing a square of size 4:"
+draw square 4
+
+show "Drawing a triangle of size 3:"
+draw triangle 3
+
+# Test Web Requests (Fetch JSON from a mock API)
+show "Fetching data from JSONPlaceholder API..."
+fetch "https://jsonplaceholder.typicode.com/todos/1" as api_result
+show "API Result:"
+show api_result
+
+# Test PDF Export
+set doc_title as "Homo Test Report"
+show "Exporting a blank PDF report named test_report.pdf..."
+export pdf as "test_report"
+show "Check your folder for test_report.pdf!"

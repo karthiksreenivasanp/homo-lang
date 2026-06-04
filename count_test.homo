@@ -1,0 +1,5 @@
+set numbers as [5,2,8,1,9,8]
+
+count 8 in numbers as total
+
+show total

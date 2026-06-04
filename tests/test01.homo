@@ -1,0 +1,7 @@
+show "TEST 1"
+
+set name as "Karthik"
+set age as 20
+
+show name
+show age

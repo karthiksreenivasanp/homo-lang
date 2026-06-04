@@ -1,0 +1,4 @@
+set items as ["A","B","C"]
+show items[0]
+append "D" to items
+show items

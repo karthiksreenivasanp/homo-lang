@@ -1,0 +1,5 @@
+show "Repeat Test"
+
+repeat 5
+
+    show "Hello"

@@ -1,0 +1,5 @@
+set names as ["A","B","C"]
+
+show names[0]
+show names[1]
+show names[2]
