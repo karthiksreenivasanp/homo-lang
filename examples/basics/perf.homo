@@ -1,0 +1,3 @@
+repeat 100000
+
+    calculate x as 1 + 1

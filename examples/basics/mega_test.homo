@@ -1,0 +1,109 @@
+show "================================="
+show "ADVANCED HOMO TEST SUITE"
+show "================================="
+
+show ""
+show "TEST 1 : HASH"
+
+hash "password123" as hash_result
+
+show hash_result
+
+show ""
+show "TEST 2 : ENCRYPT"
+
+encrypt "Hello Homo" with "secret"
+
+show result
+
+show ""
+show "TEST 3 : DECRYPT"
+
+decrypt result with "secret"
+
+show result
+
+show ""
+show "TEST 4 : CREATE FOLDER"
+
+make folder homo_demo
+
+show "Folder Created"
+
+show ""
+show "TEST 5 : COPY FILE"
+
+write original.txt as "Original File"
+
+copy original.txt as backup.txt
+
+show "File Copied"
+
+show ""
+show "TEST 6 : DELETE FILE"
+
+delete file backup.txt
+
+show "File Deleted"
+
+show ""
+show "TEST 7 : LIST FILES"
+
+list files in . as files
+
+show files
+
+show ""
+show "TEST 8 : HTTP FETCH"
+
+fetch https://jsonplaceholder.typicode.com/todos/1 as response
+
+show response
+
+show ""
+show "TEST 9 : HTTP POST"
+
+post "hello" to https://httpbin.org/post as post_response
+
+show post_response
+
+show ""
+show "TEST 10 : CHECK"
+
+check 10 is 10
+
+show "Check Complete"
+
+show ""
+show "TEST 11 : ASSERT"
+
+assert 5 > 1 otherwise "Assertion Failed"
+
+show "Assert Complete"
+
+show ""
+show "TEST 12 : ENVIRONMENT"
+
+set env TEST_VAR as "HOMO"
+
+get env TEST_VAR as env_value
+
+show env_value
+
+show ""
+show "TEST 13 : LOGGING"
+
+log "Homo Log Test"
+
+show "Logged"
+
+show ""
+show "TEST 14 : SLEEP"
+
+sleep 1
+
+show "Wake Up"
+
+show ""
+show "ADVANCED TEST FINISHED"
+show "================================="

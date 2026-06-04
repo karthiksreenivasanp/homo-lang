@@ -1,0 +1,55 @@
+define merge_sort arr
+    calculate n as len(arr)
+    if n <= 1
+        return arr
+
+    calculate mid as int(n / 2)
+    calculate left as arr[0:mid]
+    calculate right as arr[mid:n]
+
+    call merge_sort left
+    set left_sorted as result
+    
+    call merge_sort right
+    set right_sorted as result
+
+    set merged as []
+    calculate i as 0
+    calculate j as 0
+    calculate len_l as len(left_sorted)
+    calculate len_r as len(right_sorted)
+
+    while i < len_l
+        if j >= len_r
+            break
+        calculate l_val as left_sorted[i]
+        calculate r_val as right_sorted[j]
+        if l_val <= r_val
+            append l_val to merged
+            calculate i as i + 1
+        otherwise
+            append r_val to merged
+            calculate j as j + 1
+
+    while i < len_l
+        calculate l_val as left_sorted[i]
+        append l_val to merged
+        calculate i as i + 1
+
+    while j < len_r
+        calculate r_val as right_sorted[j]
+        append r_val to merged
+        calculate j as j + 1
+
+    return merged
+
+show "--- Merge Sort Demo ---"
+set my_list as [38, 27, 43, 3, 9, 82, 10]
+show "Before merge sort:"
+show my_list
+
+call merge_sort my_list
+set sorted_list as result
+
+show "After merge sort:"
+show sorted_list

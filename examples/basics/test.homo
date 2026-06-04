@@ -1,0 +1,13 @@
+load data "kids_data.csv" as df
+
+show "--- Kids Data Loaded ---"
+show data df 3 rows
+
+show "Teaching the AI to guess if a kid plays sports..."
+learn from df to guess "plays_sports" as sports_bot
+
+show "Testing the AI..."
+test sports_bot on df as score
+
+show "The AI's Accuracy Score is:"
+show score

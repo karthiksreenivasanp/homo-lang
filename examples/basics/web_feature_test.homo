@@ -1,0 +1,7 @@
+set theme as dark
+
+set layout as columns 3
+
+set style of body as color:red
+
+add nav with Home,About,Contact

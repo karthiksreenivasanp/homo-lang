@@ -1,0 +1,16 @@
+create chatbot
+create brain
+teach ai with "hello"
+ask ai "hello"
+
+draw square 5
+
+create player
+move player right
+jump player
+
+run "echo HOMO_OK"
+
+show os
+
+start testtask

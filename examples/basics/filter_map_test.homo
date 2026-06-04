@@ -1,0 +1,7 @@
+set numbers as [1,2,3,4,5,6,7,8,9,10]
+
+filter numbers where x > 5 as big
+show big
+
+map numbers with x * 2 as doubled
+show doubled

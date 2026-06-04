@@ -1,0 +1,23 @@
+define linear_search arr target
+    calculate n as len(arr)
+    calculate i as 0
+    set result as -1
+    
+    while i < n
+        calculate val as arr[i]
+        if val == target
+            set result as i
+            break
+        calculate i as i + 1
+        
+    return result
+
+show "--- Linear Search Demo ---"
+set my_list as [15, 2, 8, 30, 25]
+show "We are looking for the number 8 in this list:"
+show my_list
+
+call linear_search my_list 8
+set res as result
+show "Index of 8 is:"
+show res

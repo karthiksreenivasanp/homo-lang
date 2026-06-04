@@ -1,0 +1,33 @@
+web page "My Website"
+
+set theme dark
+
+add header "Welcome to My Website"
+
+add nav "Home,About,Projects,Contact"
+
+add section "Hero Section"
+
+add image "https://picsum.photos/300"
+
+add card "Project Card"
+
+add table "Name,Age|Karthik,21|Alice,22"
+
+add form "Contact Form"
+
+add link "GitHub,https://github.com"
+
+set layout grid
+
+set style modern
+
+set responsive
+
+add footer "Copyright 2026"
+
+serve 8080
+
+route "/" to home
+
+show "WEB TEST COMPLETE"

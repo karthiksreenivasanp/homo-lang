@@ -1,0 +1,3 @@
+load data "kids_data.csv" as df
+make AI "forest" as smart_bot
+cross validate smart_bot on df predict "plays_sports" folds 3 as test_scores

@@ -1,0 +1,2 @@
+ask "enter name :" name
+show name

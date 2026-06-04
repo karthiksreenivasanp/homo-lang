@@ -1,0 +1,3 @@
+create class Animal
+
+inherit Dog from Animal

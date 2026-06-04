@@ -1,0 +1,24 @@
+# Test Script: Core Features
+show "--- Testing Core Features ---"
+
+set name as "Homo Developer"
+show "Testing variables: Welcome {name}"
+
+calculate result as 10 plus 20
+show "Math result: {result}"
+
+set age as 25
+if age is greater than 18
+    show "Control Flow: Adult"
+otherwise
+    show "Control Flow: Minor"
+
+set counter as 0
+while counter is less than 3
+    show "Looping... {counter}"
+    calculate counter as counter plus 1
+
+define greet person
+    show "Function call: Hello, {person}!"
+
+call greet "AI Assistant"

@@ -1,0 +1,29 @@
+define bubble_sort arr
+    calculate n as len(arr)
+    calculate i as 0
+    
+    while i < n - 1
+        calculate j as 0
+        calculate end as n - i - 1
+        while j < end
+            calculate current as arr[j]
+            calculate j_next as j + 1
+            calculate next as arr[j_next]
+            if current > next
+                set arr[j] as next
+                set arr[j_next] as current
+            calculate j as j + 1
+        calculate i as i + 1
+        
+    return arr
+
+show "--- Bubble Sort Demo ---"
+set my_list as [64, 34, 25, 12, 22, 11, 90]
+show "Before sorting:"
+show my_list
+
+call bubble_sort my_list
+set sorted_list as result
+
+show "After sorting:"
+show sorted_list

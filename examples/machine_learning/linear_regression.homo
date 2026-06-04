@@ -1,0 +1,4 @@
+load data "kids_data.csv" as df
+learn from df to guess "weight" as my_ai
+test my_ai on df as score
+show score

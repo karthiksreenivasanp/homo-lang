@@ -1,208 +1,131 @@
-# Homo Language - Local Run Guide
+<div align="center">
+  <h1>🌟 Homo Programming Language</h1>
+  <p><b>A powerful, intuitive, and kid-friendly programming language with built-in Auto-Healing Machine Learning!</b></p>
+  <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/python-3.8+-green" alt="Python">
+  <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build">
+</div>
 
-[![Build Status](https://github.com/karthiksreenivasanp/homo-lang/actions/workflows/test.yml/badge.svg)](https://github.com/karthiksreenivasanp/homo-lang/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+---
 
-This guide shows how to run `.homo` programs locally, measure basic performance, and understand current runtime capabilities.
+Welcome to **Homo**! Homo is a brand new, natural-language programming environment designed specifically to introduce children, beginners, and students to complex concepts like Logic, Algorithms, and **Machine Learning** without the intimidating syntax of traditional languages.
 
-## Why Homo? (Python vs Homo Comparison)
+No brackets. No semicolons. Just pure, readable English!
 
-Homo is designed specifically to exceed expectations by completely stripping away complex syntax like semicolons, brackets, and cryptic slicing operators. It is built to be read exactly like plain English, making it the absolute easiest language for children and beginners to learn logic.
+## ✨ Key Features
+- 🧠 **Plain English Machine Learning:** Train Random Forests, SVMs, and Logistic Regressions using simple sentences like `teach my_ai using df`.
+- 🤖 **Auto-Healing Compiler (100% Offline):** Made a typo? Wrote invalid syntax? The Homo compiler will magically pause, send your broken code to a local AI, permanently fix your file on disk, and automatically restart!
+- 📊 **Auto-Detecting Metrics:** You don't need to know whether to use RMSE or Accuracy. Homo automatically detects if your data is categorical or continuous and picks the right metric for you!
+- 🗣️ **Conversational AI Assistant:** Includes an interactive web app where kids can talk to an AI mentor to learn Homo code instantly!
 
-Look at how much simpler it is to train an AI model in Homo compared to Python:
+---
 
-**The Machine Learning Nightmare vs Homo**
-Training an AI is usually terrifying for beginners. Look at the difference:
+## 🚀 Quick Setup & Installation
 
-**The Python Way (Scary for Beginners):**
-```python
-import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
+Setting up Homo is incredibly easy. It runs entirely on Python!
 
-df = pd.read_csv("data.csv")
-X = df.drop(columns=["weight"])
-y = df["weight"]
+### 1. Prerequisites
+Make sure you have Python 3.8+ installed on your system.
 
-model = RandomForestRegressor()
-model.fit(X, y)
-
-predictions = model.predict(X)
-rmse = mean_squared_error(y, predictions, squared=False)
-print("Score:", rmse)
+### 2. Clone the Repository
+```bash
+git clone https://github.com/karthiksreenivasanp/homo-lang.git
+cd homo-lang
 ```
 
-**The Homo Way (Just 3 lines of plain English!):**
+### 3. Install Dependencies
+Homo requires some standard data science libraries to power its incredible built-in Machine Learning engine:
+```bash
+pip install pandas scikit-learn requests
+```
+
+---
+
+## 💻 How to Run Your First Code
+
+Homo files end in `.homo`. To run any script, simply pass it to the compiler (`main.py`):
+
+```bash
+# Run a specific file
+python3 main.py examples/basics/test_loop.homo
+
+# Or enter Interactive Mode (REPL)
+python3 main.py
+```
+
+---
+
+## 📖 The Homo Syntax Cheat Sheet
+
+Here are some quick examples of how elegant Homo code is!
+
+### Basics
 ```homo
-load data "data.csv" as df
+set score as 100
+show "Your score is: " + score
 
-# Create and train the AI in one sentence!
-learn from df to guess "weight" as my_ai
-test my_ai on df as score
-
-show score
+ask "What is your name?" name
+show "Hello " + name
 ```
 
-Homo achieves native Python-level power without any of the frustrating technical hurdles!
-
-## 1. Prerequisites
-
-- Python 3.8+ installed
-- Files in the same folder:
-  - `main.py`
-  - `lexer.py`
-  - `parser.py`
-  - `ast_nodes.py`
-  - `interpreter.py`
-
-### Optional Packages (Advanced Features)
-
-To use the advanced Data Science, Machine Learning, and Media features, install the following optional packages. (Website/App building features have been explicitly removed to streamline the architecture).
-
-**Lightweight / Data Science:**
-```bash
-pip install pandas numpy scikit-learn matplotlib psutil requests Pillow reportlab cryptography websocket-client pyttsx3 joblib
-```
-
-**Medium / Audio & ML:**
-```bash
-pip install xgboost librosa sounddevice soundfile
-```
-
-## 2. Run a Homo program
-
-Basic usage:
-
-```bash
-python3 main.py your_file.homo
-```
-
-Enable debug output (prints source, tokens, AST):
-
-```bash
-python3 main.py your_file.homo --debug
-```
-
-## 3. Minimal example
-
-Create a file `hello.homo`:
-
+### Loops & Logic
 ```homo
-show "Hello, Homo!"
-set name as "Karthik"
-show "Welcome, {name}!"
-
-calculate sum as 10 plus 25
-show sum
-```
-
-Run it:
-
-```bash
-python3 main.py hello.homo
-```
-
-## 4. Control flow & Functions example
-
-```homo
-set age as 21
-
-if age is greater than 18
-    show "Adult"
+if score > 50
+    show "You passed!"
 otherwise
-    show "Minor"
+    show "Try again!"
 
-define greet name
-    show "Hello, {name}!"
-
-call greet "World"
+repeat 3 times
+    show "Hooray!"
 ```
 
-## 5. Data Science & Machine Learning
-
-Homo now natively supports calling pandas, numpy, and scikit-learn functions natively if the packages are installed. 
-
-**Example Data Science flow:**
+### Machine Learning (The Magic!)
+Train and cross-validate an entire AI model in just 4 lines of code:
 ```homo
+# Load data and create a Random Forest
 load data "data.csv" as df
-show data df 5 rows
-describe data df
+make AI "smart_guesser" as bot
 
-show chart line of df
+# Train the AI
+teach bot using df to guess "weight"
+
+# Cross-validate the model 3 times
+check bot 3 times on df to guess "weight" as cv_scores
+show cv_scores
 ```
 
-**Example ML flow (Kid-Friendly):**
-```homo
-# 1. Create your AI
-make AI "random_forest" as my_ai
+---
 
-# 2. Teach it using your data
-teach my_ai using df to guess "target_column"
+## 🤖 Offline Auto-Healing Compiler
 
-# 3. Test how smart it is!
-test my_ai on df as results
-show results
-```
+Homo features an unprecedented **Auto-Healing Engine**. If a child makes a syntax error or a logical mistake, the compiler will *not* crash! Instead, it will automatically connect to a local AI to fix the script on the hard drive and run it again.
 
-**Super Simple ML flow:**
-```homo
-learn from df to guess "target_column" as smart_bot
-test smart_bot on df as score
-show score
-```
-
-## 6. Measuring efficiency (basic)
-
-You can time execution using the shell:
-
-```bash
-/usr/bin/time -p python3 main.py your_file.homo
-```
-
-This prints:
-- **real**: total wall time
-- **user**: CPU time in user mode
-- **sys**: CPU time in kernel mode
-
-## 7. Known runtime limitations
-
-Some advanced AST nodes exist in `ast_nodes.py` and are parsed, but are not implemented in the runtime (interpreter). When used, they print a message like:
-
-```
-[homo] <feature> not supported in this runtime (<NodeName>)
-```
-
-Currently **unsupported** categories (unless "Heavy" dependencies are installed and implemented):
-- Deep learning (PyTorch)
-- Local LLM helpers
-- Computer vision helpers
-- Generative helpers
-- NLP helpers
-
-Core language features (variables, control flow, functions, file ops, logging, etc.) and Data Science / ML are fully implemented.
-
-## 8. Common issues
-
-- **File not found**: Ensure the `.homo` path is correct.
-- **Import/use issues**: When using `use module`, keep `.homo` modules relative to the running file or current working directory.
-- **Missing optional packages**: Install the packages listed in section 1 if a feature needs them.
-- **Removed Features**: Web scaffolding, Desktop App (Tkinter), and GUI features have been removed from this distribution.
-
-## 🤖 Auto-Healing Compiler (100% Offline)
-Homo features a revolutionary **Auto-Healing Compiler**. If a child makes a typo or a logical mistake (like writing `ash name` instead of `ask`), the compiler will NOT crash. 
-Instead, it will secretly send the broken code to a background AI, permanently fix the `.homo` file on your hard drive, and automatically restart the program!
-
-**To run this 100% offline (No Internet Required):**
+**To enable 100% Offline Auto-Healing (No Internet Required):**
 1. Install [Ollama](https://ollama.com).
-2. Open your terminal and run: `ollama run llama3`
-3. That's it! Homo will automatically detect the local server and use it to magically fix code in the background without sending any data to the cloud.
+2. Open your terminal and start the AI engine: `ollama run llama3`
+3. That's it! Homo will automatically detect the local server and use it to magically fix broken code in the background!
 
-## Setup Guidelines
-1. Clone this repository.
+*(If you don't have Ollama, you can also use Groq's cloud API by setting the `GROQ_API_KEY` environment variable).*
 
-## 9. Where output goes
+---
 
-- Standard output (terminal) is used for `show` and most runtime logs.
-- `log` writes to `app.log` in the current working directory.
-- `export pdf` will create a basic PDF in the working directory.
+## 📁 Repository Structure
+
+We've neatly organized the repository so it's easy to explore:
+
+- **`/` (Root):** Contains the core compiler files (`main.py`, `lexer.py`, `parser.py`, `interpreter.py`).
+- **`/examples/`:** Contains incredible examples of what Homo can do!
+  - `/machine_learning/`: Advanced ML pipelines (KNN, Linear, SVM).
+  - `/sorting/`: Famous algorithms written in Homo (Bubble sort, Merge sort).
+  - `/data/`: Sample CSV files for ML training.
+- **`/tests/`:** Contains unit tests and the Master Test Suite (`find_bugs.homo`) to ensure the language is 100% stable.
+- **`/homo_assistant/`:** The Streamlit web app that runs the conversational AI mentor!
+
+---
+
+## 🤝 Contributing
+Want to help make Homo even better? We welcome contributions! Feel free to open an issue, submit a Pull Request, or add more algorithms to the `examples/` folder.
+
+<div align="center">
+  <b>Built with ❤️ to make programming and AI accessible to everyone!</b>
+</div>

@@ -1,0 +1,60 @@
+show "=== HOMO MASTER TEST SUITE ==="
+
+# 1. Math and Logic
+show "--- Test 1: Math & Logic ---"
+set x as 10
+set y as 5
+calculate sum as x plus y
+calculate prod as x times y
+if sum is greater than 10
+    show "Math logic works!"
+otherwise
+    show "Math logic failed!"
+
+# 2. String operations and Formatting
+show "--- Test 2: Strings ---"
+set word as "Homo"
+show "Welcome to {word}!"
+
+# 3. Loops
+show "--- Test 3: Loops ---"
+set i as 0
+while i is less than 3
+    show "Looping... {i}"
+    calculate i as i plus 1
+
+# 4. Functions
+show "--- Test 4: Functions ---"
+define square number
+    calculate result as number times number
+    return result
+
+set sq as call square 5
+show "Square of 5 is: {sq}"
+
+# 5. Complex Machine Learning Flow
+show "--- Test 5: Machine Learning Pipeline ---"
+load data "kids_data.csv" as df
+
+show "Testing basic ML training..."
+make AI "category_guesser" as my_ai
+teach my_ai using df to guess "plays_sports"
+
+show "Testing predictions..."
+test my_ai on df as scores
+
+show "Testing cross validation..."
+check my_ai 3 times on df to guess "plays_sports" as cv_scores
+show cv_scores
+
+show "Testing feature importance (with forest)..."
+make AI "smart_guesser" as tree_bot
+teach tree_bot using df to guess "plays_sports"
+find clues in tree_bot as clues
+show clues
+
+show "Testing hyperparameter tuning..."
+upgrade tree_bot 3 times on df to guess "plays_sports" as best_params
+show best_params
+
+show "=== ALL TESTS COMPLETED SUCCESSFULLY ==="

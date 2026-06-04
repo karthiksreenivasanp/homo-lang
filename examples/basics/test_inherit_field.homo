@@ -1,0 +1,8 @@
+create class Animal
+    set species as "Dog"
+
+inherit Pet from Animal
+
+create Pet as p
+
+show p

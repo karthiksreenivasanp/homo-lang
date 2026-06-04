@@ -1,0 +1,34 @@
+# Test Script: Advanced Data Science and ML
+show "--- Testing Data Science & Machine Learning ---"
+
+# Test file writing
+write "Sample text" as "output.txt"
+show "Wrote sample text to output.txt"
+
+load data "dummy_data.csv" as df
+show "Data loaded successfully."
+
+describe data df
+show data df 3 rows
+
+# If matplotlib is installed, this will show a chart
+show chart line of df
+
+# Train a basic ML AI using the friendly syntax!
+show "Teaching the AI..."
+make AI "forest" as my_robot
+teach my_robot using df to guess "target"
+
+show "Testing the AI..."
+test my_robot on df as results
+show "Robot's Scorecard:"
+show results
+
+# Testing the super simple alias
+show "Trying the super simple 'learn from' alias..."
+learn from df to guess "target" as smart_bot
+test smart_bot on df as score
+show "Smart Bot Score:"
+show score
+
+delete file "dummy_data.csv"

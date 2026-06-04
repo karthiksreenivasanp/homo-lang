@@ -1,0 +1,21 @@
+make website
+
+set theme as dark
+
+add header "Karthik S"
+
+add card "Speaker Attendance"
+
+    AI Voice Attendance System
+
+add card "Sahayak"
+
+    AI Educational Platform
+
+add card "LitLoom"
+
+    Interactive Storytelling
+
+add footer "Made With Homo"
+
+publish website

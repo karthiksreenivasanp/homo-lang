@@ -1,0 +1,14 @@
+define is_palindrome word
+    reverse word as rev
+    if word == rev
+        return "yes"
+    otherwise
+        return "no"
+
+show "--- Palindrome Check Demo ---"
+ask "Enter a word: " word
+call is_palindrome word
+set result as result
+
+show "Is the word a palindrome?"
+show result

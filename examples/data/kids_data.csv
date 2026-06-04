@@ -1,0 +1,15 @@
+age,height,weight,favorite_color,plays_sports
+6,110,20,blue,0
+7,115,22,red,1
+8,125,25,green,1
+9,130,28,blue,0
+10,135,32,yellow,1
+11,140,36,red,1
+12,145,40,blue,0
+6,112,21,yellow,0
+7,118,24,green,1
+8,122,26,red,0
+9,132,29,blue,1
+10,138,34,green,1
+11,142,38,yellow,0
+12,148,42,red,1

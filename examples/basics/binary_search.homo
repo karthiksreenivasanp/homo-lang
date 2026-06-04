@@ -1,0 +1,30 @@
+define binary_search arr target
+    calculate low as 0
+    calculate n as len(arr)
+    calculate high as n - 1
+    
+    set result as -1
+    
+    while low <= high
+        calculate mid as int((low + high) / 2)
+        calculate mid_val as arr[mid]
+        if mid_val == target
+            set result as mid
+            break
+        otherwise
+            if mid_val < target
+                calculate low as mid + 1
+            otherwise
+                calculate high as mid - 1
+            
+    return result
+
+show "--- Binary Search Demo ---"
+set my_list as [10, 20, 30, 40, 50, 60, 70]
+show "We are looking for the number 50 in this sorted list:"
+show my_list
+
+call binary_search my_list 50
+set res as result
+show "Index of 50 is:"
+show res

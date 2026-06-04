@@ -1,0 +1,7 @@
+create website
+
+page Home
+    title "My Website"
+    text "Hello World"
+
+route "/" shows Home
