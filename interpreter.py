@@ -1946,13 +1946,13 @@ class Interpreter:
                 from sklearn.decomposition import PCA
                 model_type = str(node.model_type).lower()
                 params = {k: self._coerce_value(v) for k, v in (node.params or {}).items()}
-                if model_type == "linear":
+                if model_type in ("linear", "line_guesser"):
                     model = LinearRegression(**params)
-                elif model_type == "logistic":
+                elif model_type in ("logistic", "category_guesser"):
                     model = LogisticRegression(**params)
-                elif model_type == "tree":
+                elif model_type in ("tree", "decision_guesser"):
                     model = DecisionTreeClassifier(**params)
-                elif model_type == "forest":
+                elif model_type in ("forest", "smart_guesser"):
                     model = RandomForestClassifier(**params)
                 elif model_type == "svm":
                     model = SVC(**params)
@@ -1960,7 +1960,7 @@ class Interpreter:
                     model = KNeighborsClassifier(**params)
                 elif model_type == "naive_bayes":
                     model = GaussianNB(**params)
-                elif model_type == "kmeans":
+                elif model_type in ("kmeans", "grouper"):
                     model = KMeans(**params)
                 elif model_type == "dbscan":
                     model = DBSCAN(**params)

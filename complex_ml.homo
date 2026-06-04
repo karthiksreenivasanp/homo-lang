@@ -1,0 +1,27 @@
+load data "kids_data.csv" as df
+
+show "--- The Great AI Race ---"
+show "Let's see which AI is smartest at guessing if a kid plays sports!"
+
+make AI "smart_guesser" as tree_bot
+make AI "category_guesser" as math_bot
+make AI "line_guesser" as line_bot
+
+show "Teaching all the bots..."
+teach tree_bot using df to guess "plays_sports"
+teach math_bot using df to guess "plays_sports"
+teach line_bot using df to guess "plays_sports"
+
+show "Testing time!"
+test tree_bot on df as score1
+test math_bot on df as score2
+test line_bot on df as score3
+
+show "Tree Bot Score:"
+show score1
+
+show "Math Bot Score:"
+show score2
+
+show "Line Bot Score:"
+show score3

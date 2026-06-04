@@ -57,15 +57,21 @@ Homo has built-in ML capabilities!
 
 load data "data.csv" as df
 
-# Create AI (options: "linear", "logistic", "svm", "knn")
-make AI "linear" as bot
-
-# Train the AI
-teach bot using df to guess "weight"
+# Create an AI model (options: "smart_guesser", "line_guesser", "category_guesser", "grouper")
+make AI "smart_guesser" as bot
 
 # Test the AI (Homo auto-detects if it should measure Error or Accuracy)
 test bot on df as score
 show score
+
+# Check the AI multiple times to be super sure
+check bot 3 times on df to guess "weight" as cv_scores
+
+# Find out what the AI thinks is the most important clue
+find clues in bot as clues
+
+# Make the AI even smarter
+upgrade bot 3 times on df to guess "weight" as best_params
 
 ## Important Rules for Homo Code
 - No brackets `{}` or semicolons `;`.

@@ -487,22 +487,22 @@ class Lexer:
                 rest = line[11:]
                 file_part, name = rest.split(" as ", 1)
                 tokens.append(("LOAD_MODEL", file_part.strip(), name.strip()))
-            elif line.startswith("tune ") and " on " in line and " predict " in line and " trials " in line and " as " in line:
-                rest = line[5:]
-                model, right = rest.split(" on ", 1)
-                df_part, right = right.split(" predict ", 1)
-                target, right = right.split(" trials ", 1)
-                trials, res = right.split(" as ", 1)
+            elif line.startswith("upgrade ") and " times on " in line and " to guess " in line and " as " in line:
+                rest = line[8:]
+                model, right = rest.split(" ", 1)
+                trials, right = right.split(" times on ", 1)
+                df_part, right = right.split(" to guess ", 1)
+                target, res = right.split(" as ", 1)
                 tokens.append(("TUNE_MODEL", model.strip(), df_part.strip(), target.strip().strip('"\''), trials.strip(), res.strip()))
-            elif line.startswith("cross validate ") and " on " in line and " predict " in line and " folds " in line and " as " in line:
-                rest = line[15:]
-                model, right = rest.split(" on ", 1)
-                df_part, right = right.split(" predict ", 1)
-                target, right = right.split(" folds ", 1)
-                folds, res = right.split(" as ", 1)
+            elif line.startswith("check ") and " times on " in line and " to guess " in line and " as " in line:
+                rest = line[6:]
+                model, right = rest.split(" ", 1)
+                folds, right = right.split(" times on ", 1)
+                df_part, right = right.split(" to guess ", 1)
+                target, res = right.split(" as ", 1)
                 tokens.append(("CROSS_VALIDATE", model.strip(), df_part.strip(), target.strip().strip('"\''), folds.strip(), res.strip()))
-            elif line.startswith("feature importance of ") and " as " in line:
-                rest = line[22:]
+            elif line.startswith("find clues in ") and " as " in line:
+                rest = line[14:]
                 model, res = rest.split(" as ", 1)
                 tokens.append(("FEATURE_IMPORTANCE", model.strip(), res.strip()))
             elif line.startswith("confusion matrix of ") and " on " in line and " as " in line:
