@@ -1,0 +1,16 @@
+LICENSE
+README.md
+setup.py
+src/homo/__init__.py
+src/homo/__main__.py
+src/homo/ast_nodes.py
+src/homo/cli.py
+src/homo/interpreter.py
+src/homo/lexer.py
+src/homo/parser.py
+src/homo_lang.egg-info/PKG-INFO
+src/homo_lang.egg-info/SOURCES.txt
+src/homo_lang.egg-info/dependency_links.txt
+src/homo_lang.egg-info/entry_points.txt
+src/homo_lang.egg-info/requires.txt
+src/homo_lang.egg-info/top_level.txt

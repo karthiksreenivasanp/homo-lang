@@ -34,7 +34,7 @@ show "Square of 5 is: {sq}"
 
 # 5. Complex Machine Learning Flow
 show "--- Test 5: Machine Learning Pipeline ---"
-load data "kids_data.csv" as df
+load data "examples/data/kids_data.csv" as df
 
 show "Testing basic ML training..."
 make AI "category_guesser" as my_ai

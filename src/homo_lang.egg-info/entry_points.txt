@@ -1,0 +1,2 @@
+[console_scripts]
+homo = homo.cli:main
