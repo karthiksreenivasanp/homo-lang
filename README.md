@@ -65,12 +65,12 @@ rmse = mean_squared_error(y, predictions, squared=False)
 print("Score:", rmse)
 ```
 
-**The Homo Way (Just 4 lines of plain English):**
+**The Homo Way (Just 3 lines of plain English!):**
 ```homo
 load data "data.csv" as df
 
-make AI "random_forest" as my_ai
-teach my_ai using df to guess "weight"
+# Create and train the AI in one sentence!
+learn from df to guess "weight" as my_ai
 test my_ai on df as score metric "rmse"
 
 show score
