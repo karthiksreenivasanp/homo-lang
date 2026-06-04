@@ -2128,13 +2128,23 @@ class Interpreter:
             if df is None: return
             try:
                 from sklearn.model_selection import RandomizedSearchCV
+                from sklearn.ensemble import RandomForestClassifier
+                from sklearn.tree import DecisionTreeClassifier
+                from sklearn.linear_model import LogisticRegression
+                from sklearn.svm import SVC
+                
                 features = info["features"] if info and info.get("features") else [c for c in df.columns if c != node.target]
                 X, y = self._prepare_ml_data(df, features, target=node.target, info=info, is_train=True)
-                param_grid = {
-                    "n_estimators": [50, 100, 200],
-                    "max_depth": [None, 5, 10],
-                    "C": [0.1, 1, 10]
-                }
+                param_grid = {}
+                if isinstance(model, (RandomForestClassifier, DecisionTreeClassifier)):
+                    param_grid = {"max_depth": [None, 5, 10]}
+                    if isinstance(model, RandomForestClassifier):
+                        param_grid["n_estimators"] = [50, 100, 200]
+                elif isinstance(model, (LogisticRegression, SVC)):
+                    param_grid = {"C": [0.1, 1, 10]}
+                else:
+                    print(f"[homo] Tune not supported for {type(model)}")
+                    return
                 search = RandomizedSearchCV(model, param_grid, n_iter=int(node.trials), cv=3)
                 search.fit(X, y)
                 self.variables[node.result] = search.best_params_

@@ -493,14 +493,14 @@ class Lexer:
                 df_part, right = right.split(" predict ", 1)
                 target, right = right.split(" trials ", 1)
                 trials, res = right.split(" as ", 1)
-                tokens.append(("TUNE_MODEL", model.strip(), df_part.strip(), target.strip(), trials.strip(), res.strip()))
+                tokens.append(("TUNE_MODEL", model.strip(), df_part.strip(), target.strip().strip('"\''), trials.strip(), res.strip()))
             elif line.startswith("cross validate ") and " on " in line and " predict " in line and " folds " in line and " as " in line:
                 rest = line[15:]
                 model, right = rest.split(" on ", 1)
                 df_part, right = right.split(" predict ", 1)
                 target, right = right.split(" folds ", 1)
                 folds, res = right.split(" as ", 1)
-                tokens.append(("CROSS_VALIDATE", model.strip(), df_part.strip(), target.strip(), folds.strip(), res.strip()))
+                tokens.append(("CROSS_VALIDATE", model.strip(), df_part.strip(), target.strip().strip('"\''), folds.strip(), res.strip()))
             elif line.startswith("feature importance of ") and " as " in line:
                 rest = line[22:]
                 model, res = rest.split(" as ", 1)
