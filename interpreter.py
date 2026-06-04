@@ -837,6 +837,76 @@ class Interpreter:
             return None
         return df
 
+    def _prepare_ml_data(self, df, features, target=None, info=None, is_train=False):
+        pd = self._import_module("pandas", "pandas")
+        if not pd: return df, None if target else df
+        
+        def _is_categorical(col):
+            try:
+                from pandas.api.types import is_string_dtype, is_object_dtype
+                if is_string_dtype(col) or is_object_dtype(col): return True
+                if isinstance(col.dtype, pd.CategoricalDtype): return True
+            except ImportError:
+                pass
+            return str(col.dtype).lower() in ("object", "category", "string", "str")
+
+        X = df[features].copy()
+        y = df[target].copy() if target and target in df.columns else None
+
+        if info is None:
+            info = {}
+
+        if is_train:
+            info["encoders"] = {}
+            for col in X.columns:
+                if _is_categorical(X[col]):
+                    X[col] = X[col].fillna("Missing")
+                    from sklearn.preprocessing import LabelEncoder
+                    le = LabelEncoder()
+                    X[col] = le.fit_transform(X[col].astype(str))
+                    info["encoders"][col] = le
+                else:
+                    X[col] = X[col].fillna(X[col].median() if not X[col].isnull().all() else 0)
+            
+            if y is not None:
+                if _is_categorical(y):
+                    y = y.fillna("Missing")
+                    from sklearn.preprocessing import LabelEncoder
+                    le_y = LabelEncoder()
+                    y = le_y.fit_transform(y.astype(str))
+                    info["target_encoder"] = le_y
+                else:
+                    y = y.fillna(y.median() if not y.isnull().all() else 0)
+        else:
+            encoders = info.get("encoders", {})
+            for col in X.columns:
+                if col in encoders:
+                    le = encoders[col]
+                    X[col] = X[col].fillna("Missing")
+                    # Handle unseen labels by mapping them to a special class or the first class
+                    classes = list(le.classes_)
+                    X[col] = X[col].apply(lambda val: val if str(val) in classes else (classes[0] if classes else val))
+                    X[col] = le.transform(X[col].astype(str))
+                else:
+                    if _is_categorical(X[col]):
+                        X[col] = pd.to_numeric(X[col], errors='coerce').fillna(0)
+                    else:
+                        X[col] = X[col].fillna(X[col].median() if not X[col].isnull().all() else 0)
+            if y is not None:
+                target_encoder = info.get("target_encoder")
+                if target_encoder:
+                    y = y.fillna("Missing")
+                    classes = list(target_encoder.classes_)
+                    y = y.apply(lambda val: val if str(val) in classes else (classes[0] if classes else val))
+                    y = target_encoder.transform(y.astype(str))
+                else:
+                    if _is_categorical(y):
+                        y = pd.to_numeric(y, errors='coerce').fillna(0)
+                    else:
+                        y = y.fillna(y.median() if not y.isnull().all() else 0)
+
+        return X, y
+
     def execute(self, ast):
         for line_no, node in enumerate(ast, start=1):
             try:
@@ -1500,11 +1570,7 @@ class Interpreter:
             self.variables["run_output"] = r.stdout
             print(r.stdout or r.stderr)
 
-        elif isinstance(node, CompileNode):
-            print(f"[homo] Compiling → '{node.target}'")
-            r = subprocess.run([sys.executable, "-m", "PyInstaller", "--onefile", "main.py"],
-                               capture_output=True, text=True)
-            print(r.stdout[:300] or r.stderr[:300])
+
 
         elif isinstance(node, MediaNode):
             action = str(node.action)
@@ -1928,14 +1994,15 @@ class Interpreter:
             if df is None: return
             try:
                 features = self._parse_columns(node.features) if node.features else [c for c in df.columns if c != node.target]
-                X = df[features]
-                y = df[node.target]
+                X, y = self._prepare_ml_data(df, features, target=node.target, info=info, is_train=True)
                 model.fit(X, y)
                 if info is not None:
                     info["features"] = features
                     info["target"] = node.target
                 print(f"[homo] Model '{node.model}' trained")
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 print(f"[homo] Train model error: {e}")
 
         elif isinstance(node, EvaluateModelNode):
@@ -1955,8 +2022,7 @@ class Interpreter:
                 if target_col is None:
                     print("[homo] Evaluate error: target column required")
                     return
-                X = df[features]
-                y_true = df[target_col]
+                X, y_true = self._prepare_ml_data(df, features, target=target_col, info=info, is_train=False)
                 y_pred = model.predict(X)
                 metric = (node.metric or "").lower()
                 if metric == "rmse":
@@ -1984,7 +2050,7 @@ class Interpreter:
             try:
                 if hasattr(source, "columns"):
                     features = info["features"] if info and info.get("features") else list(source.columns)
-                    X = source[features]
+                    X, _ = self._prepare_ml_data(source, features, info=info, is_train=False)
                 else:
                     np = self._import_module("numpy", "numpy")
                     if not np: return
@@ -2038,8 +2104,7 @@ class Interpreter:
             try:
                 from sklearn.model_selection import RandomizedSearchCV
                 features = info["features"] if info and info.get("features") else [c for c in df.columns if c != node.target]
-                X = df[features]
-                y = df[node.target]
+                X, y = self._prepare_ml_data(df, features, target=node.target, info=info, is_train=True)
                 param_grid = {
                     "n_estimators": [50, 100, 200],
                     "max_depth": [None, 5, 10],
@@ -2065,8 +2130,7 @@ class Interpreter:
             try:
                 from sklearn.model_selection import cross_val_score
                 features = info["features"] if info and info.get("features") else [c for c in df.columns if c != node.target]
-                X = df[features]
-                y = df[node.target]
+                X, y = self._prepare_ml_data(df, features, target=node.target, info=info, is_train=True)
                 scores = cross_val_score(model, X, y, cv=int(node.folds))
                 self.variables[node.result] = scores
                 print(f"[homo] Cross validation → '{node.result}'")
@@ -2109,8 +2173,7 @@ class Interpreter:
                     print("[homo] Confusion matrix error: target required")
                     return
                 features = info["features"] if info and info.get("features") else [c for c in df.columns if c != target_col]
-                X = df[features]
-                y_true = df[target_col]
+                X, y_true = self._prepare_ml_data(df, features, target=target_col, info=info, is_train=False)
                 y_pred = model.predict(X)
                 cm = confusion_matrix(y_true, y_pred)
                 self.variables[node.result] = cm

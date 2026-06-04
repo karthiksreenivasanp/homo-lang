@@ -1,0 +1,8 @@
+color,size,price,is_sold
+red,large,15.5,1
+blue,small,10.0,0
+green,,12.5,1
+,large,,0
+blue,medium,11.0,1
+red,,14.2,
+green,small,13.0,1
