@@ -63,8 +63,8 @@ make AI "linear" as bot
 # Train the AI
 teach bot using df to guess "weight"
 
-# Test the AI (metric can be "rmse", "r2", "f1", etc.)
-test bot on df as score metric "rmse"
+# Test the AI (Homo auto-detects if it should measure Error or Accuracy)
+test bot on df as score
 show score
 
 ## Important Rules for Homo Code

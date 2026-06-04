@@ -39,7 +39,7 @@ load data "data.csv" as df
 
 # Create and train the AI in one sentence!
 learn from df to guess "weight" as my_ai
-test my_ai on df as score metric "rmse"
+test my_ai on df as score
 
 show score
 ```

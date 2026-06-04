@@ -2040,6 +2040,15 @@ class Interpreter:
                 X, y_true = self._prepare_ml_data(df, features, target=target_col, info=info, is_train=False)
                 y_pred = model.predict(X)
                 metric = (node.metric or "").lower()
+                
+                # Auto-detect metric if not provided
+                if not metric:
+                    from sklearn.utils.multiclass import type_of_target
+                    if type_of_target(y_pred) == 'continuous':
+                        metric = "rmse"
+                    else:
+                        metric = "accuracy"
+
                 if metric == "rmse":
                     import math
                     score = float(math.sqrt(mean_squared_error(y_true, y_pred)))
