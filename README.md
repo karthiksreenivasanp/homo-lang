@@ -189,6 +189,18 @@ Core language features (variables, control flow, functions, file ops, logging, e
 - **Missing optional packages**: Install the packages listed in section 1 if a feature needs them.
 - **Removed Features**: Web scaffolding, Desktop App (Tkinter), and GUI features have been removed from this distribution.
 
+## 🤖 Auto-Healing Compiler (100% Offline)
+Homo features a revolutionary **Auto-Healing Compiler**. If a child makes a typo or a logical mistake (like writing `ash name` instead of `ask`), the compiler will NOT crash. 
+Instead, it will secretly send the broken code to a background AI, permanently fix the `.homo` file on your hard drive, and automatically restart the program!
+
+**To run this 100% offline (No Internet Required):**
+1. Install [Ollama](https://ollama.com).
+2. Open your terminal and run: `ollama run llama3`
+3. That's it! Homo will automatically detect the local server and use it to magically fix code in the background without sending any data to the cloud.
+
+## Setup Guidelines
+1. Clone this repository.
+
 ## 9. Where output goes
 
 - Standard output (terminal) is used for `show` and most runtime logs.
