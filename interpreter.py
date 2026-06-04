@@ -419,35 +419,47 @@ class Interpreter:
 
     def _split_if_otherwise(self, body, start_idx):
         true_b, else_b = [], []
-        depth, in_else = 0, False
+        in_else = False
         idx = start_idx
-        TOP_LEVEL = ("set ", "calculate ", "show ", "ask ", "return ",
-                     "call ", "while ", "for ", "repeat ", "define ",
-                     "if ", "read ", "write ", "append ", "remove ", "sort ")
+        
+        # We find the indentation of the starting "if" line (which is start_idx - 1)
+        if_line_raw = body[start_idx - 1]
+        base_indent = len(if_line_raw) - len(if_line_raw.lstrip())
+        
         while idx < len(body):
-            line = body[idx].strip()
-            if depth == 0 and not in_else and line == "otherwise":
-                in_else = True; idx += 1; continue
-            if depth == 0 and line.startswith("if "):
-                depth += 1
-            elif depth > 0:
-                if line.startswith("if "): depth += 1
-                elif line == "otherwise":  depth -= 1
-            else:
-                current = else_b if in_else else true_b
-                if len(current) >= 1 and any(line.startswith(kw) for kw in TOP_LEVEL):
-                    break
-            (else_b if in_else else true_b).append(line)
+            raw_line = body[idx]
+            if not raw_line.strip():
+                (else_b if in_else else true_b).append(raw_line)
+                idx += 1
+                continue
+                
+            curr_indent = len(raw_line) - len(raw_line.lstrip())
+            line = raw_line.strip()
+            
+            # An "otherwise" at the exact same indentation as the "if" switches to else_b
+            if curr_indent == base_indent and line == "otherwise":
+                in_else = True
+                idx += 1
+                continue
+                
+            # Any non-empty line at or below base_indent ends the entire if-otherwise construct
+            if curr_indent <= base_indent:
+                break
+                
+            (else_b if in_else else true_b).append(raw_line)
             idx += 1
+            
         return true_b, else_b, idx
 
     def run_block(self, body, local_vars):
         i = 0
         while i < len(body):
-            line = body[i].strip()
-
-            if not line:
+            raw_line = body[i]
+            if not raw_line.strip():
                 i += 1; continue
+            
+            indent_len = len(raw_line) - len(raw_line.lstrip())
+            line = raw_line.strip()
 
             if line == "break":
                 return "__break__"
@@ -471,7 +483,8 @@ class Interpreter:
                     bline = body[j]
                     if not bline.strip():
                         j += 1; continue
-                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                    b_indent = len(bline) - len(bline.lstrip())
+                    if b_indent > indent_len:
                         func_body.append(bline)
                         j += 1
                     else:
@@ -485,9 +498,9 @@ class Interpreter:
                 j = i + 1
                 while j < len(body):
                     bline = body[j]
-                    if not bline.strip():
-                        j += 1; continue
-                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                    if not bline.strip(): j += 1; continue
+                    b_indent = len(bline) - len(bline.lstrip())
+                    if b_indent > indent_len:
                         while_body.append(bline)
                         j += 1
                     else:
@@ -518,7 +531,8 @@ class Interpreter:
                     bline = body[j]
                     if not bline.strip():
                         j += 1; continue
-                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                    b_indent = len(bline) - len(bline.lstrip())
+                    if b_indent > indent_len:
                         for_body.append(bline)
                         j += 1
                     else:
@@ -545,7 +559,8 @@ class Interpreter:
                     bline = body[j]
                     if not bline.strip():
                         j += 1; continue
-                    if bline[0] in " \t\xa0" or (len(bline) > 0 and bline.startswith("    ")):
+                    b_indent = len(bline) - len(bline.lstrip())
+                    if b_indent > indent_len:
                         repeat_body.append(bline)
                         j += 1
                     else:
@@ -2026,7 +2041,8 @@ class Interpreter:
                 y_pred = model.predict(X)
                 metric = (node.metric or "").lower()
                 if metric == "rmse":
-                    score = float(mean_squared_error(y_true, y_pred, squared=False))
+                    import math
+                    score = float(math.sqrt(mean_squared_error(y_true, y_pred)))
                 elif metric == "r2":
                     score = float(r2_score(y_true, y_pred))
                 elif metric == "f1":

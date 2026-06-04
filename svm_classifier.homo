@@ -1,0 +1,15 @@
+show "--- Support Vector Machine (SVM) AI Demo ---"
+
+load data "kids_data.csv" as df
+
+show "Making an SVM Classifier AI..."
+make AI "svm" as my_ai
+
+show "Teaching the AI to guess if a kid 'plays_sports' (1 or 0)..."
+teach my_ai using df to guess "plays_sports"
+
+show "Testing the AI on the same data..."
+test my_ai on df as score
+
+show "The Accuracy Score is:"
+show score

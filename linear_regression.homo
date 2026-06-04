@@ -1,0 +1,17 @@
+show "--- Linear Regression AI Demo ---"
+
+load data "kids_data.csv" as df
+show "Here is the kids data:"
+show data df 5 rows
+
+show "Making a Linear Regression AI..."
+make AI "linear" as my_ai
+
+show "Teaching the AI to guess the 'weight' of a kid using their data..."
+teach my_ai using df to guess "weight"
+
+show "Testing the AI on the same data..."
+test my_ai on df as score metric "rmse"
+
+show "The Root Mean Squared Error (RMSE) on weight is:"
+show score

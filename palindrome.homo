@@ -1,13 +1,14 @@
-ask "Enter Word:" word
+define is_palindrome word
+    reverse word as rev
+    if word == rev
+        return "yes"
+    otherwise
+        return "no"
 
-reverse word as rev
+show "--- Palindrome Check Demo ---"
+ask "Enter a word: " word
+call is_palindrome word
+set result as result
 
-show rev
-
-if word == rev
-
-    show "Palindrome"
-
-otherwise
-
-    show "Not Palindrome"
+show "Is the word a palindrome?"
+show result

@@ -1,0 +1,33 @@
+define insertion_sort arr
+    calculate n as len(arr)
+    calculate i as 1
+    
+    while i < n
+        calculate key as arr[i]
+        calculate j as i - 1
+        
+        while j >= 0
+            calculate val as arr[j]
+            calculate j_next as j + 1
+            if val > key
+                set arr[j_next] as val
+                calculate j as j - 1
+            otherwise
+                break
+                
+        calculate j_next as j + 1
+        set arr[j_next] as key
+        calculate i as i + 1
+        
+    return arr
+
+show "--- Insertion Sort Demo ---"
+set my_list as [12, 11, 13, 5, 6]
+show "Before sorting:"
+show my_list
+
+call insertion_sort my_list
+set sorted_list as result
+
+show "After sorting:"
+show sorted_list
